@@ -15,3 +15,20 @@
 *.PDF	 diff=astextplain
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
+*.agda diff=astextplain
+*.bak	 diff=astextplain
+*.x	   diff=astextplain
+*.y	   diff=astextplain
+*.hi   diff=astextplain
+*.o    diff=astextplain
+
+# Some Generated Files
+BuildInstructions.txt    diff=astextplain
+DocExp.txt    diff=astextplain
+Makefile     diff=astextplain
+AbsExp.hs     diff=astextplain
+ErrM.hs     diff=astextplain
+LayoutExp.hs     diff=astextplain
+PrintExp.hs     diff=astextplain
+SkelExp.hs     diff=astextplain
+TestExp.hs     diff=astextplain

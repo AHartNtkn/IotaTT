@@ -1,0 +1,9 @@
+module Eq where
+
+refl : A (T : *) . (t : T) -> t ~ t = V T . \ t . B
+
+subst : A (T : *) (P : T -> *) . (t1 : T) -> (t2 : T) -> t1 ~ t2 -> P t1 -> P t2
+      = V T , P . \ t1 , t2 , e , pt1 . r (x : P x) e . pt1
+
+sym : A (T : *) . (a : T) -> (b : T) -> a ~ b -> b ~ a
+    = V T . \ a , b , e . r (x : x ~ a) e . B
