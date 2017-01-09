@@ -67,7 +67,7 @@ Heterogeneous identity is denoted `a ~ b`.
 
 Elimination is denoted `r (<NAME> : <TYPE>) <EQUATION> . <TERM>`.
 
-This is one of the main differenced between this implementation and
+This is one of the main differences between this implementation and
 the Stump paper. Here, r binds a variable, and the one must provide a type
 which acts as any possible intermediate substitution. For example, say
 we had a proof that `e : t1 ~ t2`, and we knew that `p : P t1`, and we
