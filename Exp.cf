@@ -1,0 +1,58 @@
+entrypoints Module, Exp ;
+
+comment "--" ;
+comment "{-" "-}" ;
+
+layout "where", "let" ;
+layout stop "in" ;
+-- Do not use layout toplevel as it makes pExp fail!
+
+Module.   Module ::= "module" AIdent "where" "{" [Imp] [Decl] "}" ;
+
+Import.   Imp ::= "import" AIdent ;
+separator Imp ";" ;
+
+DeclDef.    Decl ::= AIdent ":" Exp "=" ExpWhere ;
+separator   Decl ";" ;
+
+Where.    ExpWhere ::= Exp "where" "{" [Decl] "}" ;
+NoWhere.  ExpWhere ::= Exp ;
+
+SLet.          Exp  ::= "let" "{" [Decl] "}" "in" Exp ;
+SLamj.         Exp1 ::= "\\" [Exp] "." Exp ;
+SLami.         Exp1 ::= "/" [Exp] "." Exp ;
+SLamtj.        Exp1 ::= "V" [Exp] "." Exp ;
+SLamt.         Exp1 ::= "\\" [PTele] "." Exp ;
+SFun.          Exp1 ::= Exp2 "->" Exp1 ;
+SAll.          Exp1 ::= "A" [PTele] "." Exp1 ;
+SPi.           Exp1 ::= [PTele] "->" Exp1 ;
+SIPi.          Exp1 ::= [ITele] "->" Exp1 ;
+SIota.         Exp1 ::= "i" PTele "." Exp1 ;
+SIApp.         Exp2 ::= Exp2 "-" Exp3 ;
+STApp.         Exp2 ::= Exp2 "+" Exp3 ;
+SApp.          Exp2 ::= Exp2 Exp3 ;
+SId.           Exp2 ::= Exp2 "~" Exp3 ;
+SRho.          Exp2 ::= "r" PTele Exp2 "." Exp3 ;
+SFst.          Exp4 ::= Exp4 ".1" ;
+SSnd.          Exp4 ::= Exp4 ".2" ;
+SPair.         Exp5 ::= "[" Exp "|" Exp "]" ;
+SVar.          Exp5 ::= AIdent ;
+SBeta.         Exp5 ::= "B" ;
+SU.            Exp5 ::= "*" ;
+SHole.         Exp5 ::= HoleIdent ;
+coercions Exp 5 ;
+separator nonempty Exp "," ;
+
+-- Telescopes
+Tele.     Tele ::= "(" AIdent [AIdent] ":" Exp ")" ;
+terminator Tele "" ;
+
+PTele.    PTele ::= "(" Exp ":" Exp ")" ;
+ITele.    ITele ::= "{" Exp ":" Exp "}" ;
+terminator nonempty PTele "" ;
+terminator nonempty ITele "" ;
+
+token AIdent ('_')|(letter)(letter|digit|'\''|'_')*|('!')(digit)* ;
+separator AIdent "" ;
+
+token HoleIdent '?' ;
