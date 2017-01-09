@@ -33,7 +33,7 @@ V <NAME> . <TERM>
 
 To issue a type as an argument, use ``<TERM> + <TYPE>``.
 
-Note that IotaTT supports quantification over types when
+Note that IotaTT supports quantification over kinds when
 defining types (which is generic type-polymorphism). This
 is necessary for describing, for example, identity types,
 but is not present in the system described by the Stump
