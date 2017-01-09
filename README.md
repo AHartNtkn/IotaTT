@@ -38,7 +38,7 @@ Implicit products are denoted with curly braces;
 {<NAME> : <TYPE>} -> <TYPE>
 ```
 
-And implicit lambda binders are denotes with a forward slash
+And implicit lambda binders are denoted with a forward slash
 ```
 / <NAME> . <TERM>
 ```
