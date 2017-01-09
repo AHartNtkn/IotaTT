@@ -123,18 +123,3 @@ main = do
   name <- getArgs
   ctx <- fileToCtx [] $ head name
   mainLoop (head name) ctx
-
-testType = "A (a : *) . a -> a"
-testTerm = "V a . \\ b . b"
-tty = (pExp . resolveLayout True . myLexer) testType
-ttt = (pExp . resolveLayout True . myLexer) testTerm
-
-aty = tty >>= convertT []
-att = ttt >>= convertA []
-
-checkTest = att >>= \tt -> aty >>= \ty -> checkTerm Empty tt ty
-
-
-defTest = "module test where\n\n\nid : A (a : *) . a -> a -> a = V a . \\ b , c . b\n\ncNat : * = A (a : *) . (a -> a) -> a -> a\n\ncZ : cNat = V a . \\ s , z . z\n\ncS : cNat -> cNat = \\ n . V a . \\ s , z . s (n + a s z)\n\nNat : * = i (x : cNat) . A (Q : cNat -> *) . ({x : cNat} -> Q x -> Q (cS x)) -> Q cZ -> Q x\n\nS : Nat -> Nat = \\ n . [ cS (n.1) | (V P . \\ s , z . s - (n.1) ((n.2) + P s z)) ]\n\nsubst : A (T : *) (P : T -> *) . (t1 : T) -> (t2 : T) -> t1 ~ t2 -> P t1 -> P t2\n      = V T , P . \\ t1 , t2 , e , pt1 . r e - (x : P x) - pt1\n"
-deft = (pModule . resolveLayout True . myLexer) defTest
-

@@ -74,7 +74,7 @@ printD i (Lamj a) = "\\" ++ char i ++ " -> " ++ printD (1 + i) a
 
 instance Show DB where 
   show = printD 0
-{-
+
 instance Show ADB where 
   show = printA 0
 
@@ -83,4 +83,3 @@ instance Show AType where
 
 instance Show AKind where 
   show = printK 0
--}

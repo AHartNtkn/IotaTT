@@ -162,7 +162,7 @@ data ADB = AVj Int
          | Snd ADB
          | Beta 
          | Rho ADB AType ADB
-         deriving (Eq , Show)
+         deriving (Eq)
 
 data AType = AVt Int
            | AAllk AKind AType
@@ -172,11 +172,11 @@ data AType = AVt Int
            | AAllt AType AType
            | AIota AType AType
            | AId ADB ADB
-           deriving (Eq , Show)
+           deriving (Eq)
 
 data AKind = AStar
            | APik AType AKind
-           deriving (Eq , Show)
+           deriving (Eq)
 
 instance DeBruijin ADB where
   freeIn (AVj x)      n = x == n 

@@ -173,12 +173,3 @@ convertT t e = fromConT e >>= fromInterT t . indexT "" 0
 
 convertK :: TopCtx -> Exp -> Err AKind
 convertK t e = fromConK e >>= fromInterK t . indexK "" 0
-
-test8 = (STApp (SSnd (SVar (AIdent "n"))) (SVar (AIdent "P")))
-test7 = (SApp test8 (SVar (AIdent "s")))
-test6 = (SApp test7 (SVar (AIdent "z")))
-test5 = (SApp (SIApp (SVar (AIdent "s")) (SFst (SVar (AIdent "n")))) test6)
-test4 = (SLamj [SVar (AIdent "s"),SVar (AIdent "z")] test5)
-test3 = (SLamtj [SVar (AIdent "p")] test4)
-test2 = (SPair (SApp (SVar (AIdent "cS")) (SFst (SVar (AIdent "n")))) test3)
-test = (SLamj [SVar (AIdent "n")] test2)
