@@ -31,7 +31,13 @@ Then a lambda binder which binds a type variable is denoted;
 V <NAME> . <TERM>
 ```
 
-To issue a type as an argument, use ``<TERM> + <TYPE>``
+To issue a type as an argument, use ``<TERM> + <TYPE>``.
+
+Note that IotaTT supports quantification over types when
+defining types (which is generic type-polymorphism). This
+is necessary for describing, for example, identity types,
+but is not present in the system described by the Stump
+paper.
 
 Implicit products are denoted with curly braces;
 ```
@@ -78,8 +84,8 @@ r (x : P x) e . p
 ```
 
 Which will be of type `P t2`. Note that x is only bound in the intermediate
-type-form, not in anything else.
-
+type-form, not in anything else. Additionally, reflexive proofs are denoted
+`B`.
 
 Install
 -------

@@ -60,6 +60,8 @@ reverseSubT s (ALamt x t) n = ALamt (reverseSubT s x n) (reverseSubT (incFree s 
 reverseSubT s (AAppt t x) n = case s == x of
   True -> AAppt (reverseSubT s t n) (AVj n)
   False -> AAppt (reverseSubT s t n) (reverseSubA s x n)
+reverseSubT s (ALAMk x t) n = ALAMk (reverseSubK s x n) (reverseSubT (incFree s 0 1) t (1 + n))
+reverseSubT s (AAppk t x) n = AAppk (reverseSubT s t n) (reverseSubT s x n)
 reverseSubT s (AAllt x t) n = AAllt (reverseSubT s x n) (reverseSubT (incFree s 0 1) t (1 + n))
 reverseSubT s (AIota x t) n = AIota (reverseSubT s x n) (reverseSubT (incFree s 0 1) t (1 + n))
 reverseSubT s (AId x y) n = case (s == x , s == y) of
@@ -71,6 +73,7 @@ reverseSubT s (AId x y) n = case (s == x , s == y) of
 reverseSubK :: ADB -> AKind -> Int -> AKind
 reverseSubK s AStar n = AStar
 reverseSubK s (APik x k) n = APik (reverseSubT s x n) (reverseSubK (incFree s 0 1) k (1 + n))
+reverseSubK s (AAlltk x k) n = AAlltk (reverseSubK s x n) (reverseSubK (incFree s 0 1) k (1 + n))
 
 -- Reverse type substitutions
 reverseSubTA :: AType -> ADB  -> Int -> ADB
@@ -110,6 +113,14 @@ reverseSubTT s (ALamt x t) n = case (s == x , incFree s 0 1 == t) of
   (False , True) -> ALamt (reverseSubTT s x n) (AVt (1 + n))
   (True , False) -> ALamt (AVt n) (reverseSubTT (incFree s 0 1) t (1 + n))
   (False , False) -> ALamt (reverseSubTT s x n) (reverseSubTT (incFree s 0 1) t (1 + n))
+reverseSubTT s (AAppk d b) n = case (s == d , s == b) of
+  (True , True)  -> AAppk (AVt n) (AVt n)
+  (False , True) -> AAppk (reverseSubTT s d n) (AVt n)
+  (True , False) -> AAppk (AVt n) (reverseSubTT s b n)
+  (False , False) -> AAppk (reverseSubTT s d n) (reverseSubTT s b n)
+reverseSubTT s (ALAMk x t) n = case incFree s 0 1 == t of
+  True -> ALAMk (reverseSubTK s x n) (AVt (1 + n))
+  False -> ALAMk (reverseSubTK s x n) (reverseSubTT (incFree s 0 1) t (1 + n))
 reverseSubTT s (AAppt t x) n = case s == t of
   True -> AAppt (AVt n) (reverseSubTA s x n)
   False -> AAppt (reverseSubTT s t n) (reverseSubTA s x n)
@@ -130,6 +141,7 @@ reverseSubTK s AStar n = AStar
 reverseSubTK s (APik x k) n = case s == x of
   True -> APik (AVt n) (reverseSubTK (incFree s 0 1) k (1 + n))
   False -> APik (reverseSubTT s x n) (reverseSubTK (incFree s 0 1) k (1 + n))
+reverseSubTK s (AAlltk x k) n = AAlltk (reverseSubTK s x n) (reverseSubTK (incFree s 0 1) k (1 + n))
 
 {- The Type Checker -}
 data Ctx = Empty
@@ -141,6 +153,7 @@ checkKind Empty AStar = Ok ()
 checkKind (Snot g _) AStar = checkKind g AStar >> Ok ()
 checkKind (Snok g _) AStar = checkKind g AStar >> Ok ()
 checkKind g (APik x k) = checkType g x AStar >> checkKind (Snot g x) k >> Ok ()
+checkKind g (AAlltk x k) = checkKind g x >> checkKind (Snok g x) k >> Ok ()
 
 inferType :: Ctx -> AType -> Err AKind
 inferType g (AVt n) = case (g , n) of
@@ -162,10 +175,15 @@ inferType g (AVt n) = case (g , n) of
 inferType g (AAllk x tp) = checkKind g x >> checkType (Snok g x) tp AStar >> Ok (AStar)
 inferType g (APit tp tpp) = checkType g tp AStar >> checkType (Snot g tp) tpp AStar >> Ok (AStar)
 inferType g (ALamt tp tpp) = checkType g tp AStar >> inferType (Snot g tp) tpp >>= \ it -> Ok (APik tp it)
+inferType g (ALAMk tp tpp) = checkKind g tp >> inferType (Snok g tp) tpp >>= \ it -> Ok (AAlltk tp it)
 inferType g (AAppt tp t) = case inferType g (sdev tp) of
   Bad s -> Bad s
   Ok (APik tp1 tp2) -> checkTerm g t tp1 >> Ok (sub t 0 tp2)
   Ok _ -> Bad "Non-type-level-product applied durring inference"
+inferType g (AAppk tp t) = case inferType g (sdev tp) of
+  Bad s -> Bad s
+  Ok (AAlltk tp1 tp2) -> checkType g t tp1 >> Ok (sub t 0 tp2)
+  Ok _ -> Bad "Non-type-kind-level-product applied durring inference"
 inferType g (AAllt tp tpp) = checkType g tp AStar >> checkType (Snot g tp) tpp AStar >> Ok (AStar)
 inferType g (AIota tp tpp) = checkType g tp AStar >> checkType (Snot g tp) tpp AStar >> Ok (AStar)
 inferType g (AId x y) = Ok (AStar)
@@ -187,12 +205,22 @@ checkType g (ALamt tp1 tpp) (APik tp2 ka) = case tp1 == tp2 of
   True -> checkType g tp2 AStar >> checkType (Snot g tp2) tpp ka >> Ok ()
   False -> Bad "Lambda binds wring type for Pi" 
 checkType g (ALamt tp tpp) _ = Bad "Type-level lambdas can only have type APik"
+checkType g (ALAMk tp1 tpp) (AAlltk tp2 ka) = case tp1 == tp2 of
+  True -> checkKind g tp2 >> checkType (Snok g tp2) tpp ka >> Ok ()
+  False -> Bad "Lambda binds wring type for Pi"
+checkType g (ALAMk tp tpp) _ = Bad "Type-level kind lambdas can only have type AAlltk"
 checkType g (AAppt tp t) ka = case inferType g (sdev (AAppt tp t)) of
   Bad s -> Bad s
   Ok k ->
     if ka == k
     then Ok ()
     else Bad "Failed to unify at type-level application"
+checkType g (AAppk tp t) ka = case inferType g (sdev (AAppk tp t)) of
+  Bad s -> Bad s
+  Ok k ->
+    if ka == k
+    then Ok ()
+    else Bad "Failed to unify at type-level type application"
 checkType g (AAllt tp tpp) AStar = checkType g tp AStar >> checkType (Snot g tp) tpp AStar >> Ok ()
 checkType g (AAllt x tp) _ = Bad "Implicit products can only have AStar kind."
 checkType g (AIota tp tpp) AStar = checkType g tp AStar >> checkType (Snot g tp) tpp AStar >> Ok ()
@@ -223,17 +251,17 @@ inferTerm g (LAMt t) = Bad "Cannot infer the type of a type-lambda term."
 inferTerm g (AAppj (ALamj t) s) = inferTerm g (sub s 0 t) >>= \ ct -> Ok (sdev ct)
 inferTerm g (AAppj t t') = case inferTerm g (sdev t) of
   Bad y -> Bad y
-  Ok (APit tp1 tp2) -> checkTerm g t' tp1 >> Ok (sdev (sub t' 0 tp2))
+  Ok (APit tp1 tp2) -> checkTerm g (sdev t') tp1 >> Ok (sdev (sub t' 0 tp2))
   Ok _ -> Bad "Term is not a pi type."
 inferTerm g (Apptj (LAMt t) s) = inferTerm g (sub s 0 t) >>= \ ct -> Ok (sdev ct)
 inferTerm g (Apptj t t') = case inferTerm g (sdev t) of
   Bad y -> Bad y
-  Ok (AAllk tp1 tp2) -> checkType g t' tp1 >> Ok (sdev (sub t' 0 tp2))
+  Ok (AAllk tp1 tp2) -> checkType g (sdev t') tp1 >> Ok (sdev (sub t' 0 tp2))
   Ok _ -> Bad "Term is not a type-product type."
 inferTerm g (Appi (LAMj t) s) = inferTerm g (sub s 0 t) >>= \ ct -> Ok (sdev ct)
 inferTerm g (Appi t t') = case inferTerm g (sdev t) of
   Bad y -> Bad y
-  Ok (AAllt tp1 tp2) -> checkTerm g t' tp1 >> Ok (sdev (sub t' 0 tp2))
+  Ok (AAllt tp1 tp2) -> checkTerm g (sdev t') tp1 >> Ok (sdev (sub t' 0 tp2))
   Ok _ -> Bad "Term is not an implicit product type."
 inferTerm g (IPair t t') = Bad "Cannot infer the type of an iota constructor."
 inferTerm g (Fst t) = case inferTerm g (sdev t) of
@@ -261,13 +289,13 @@ checkTerm g (AVj n) tp = case (g , n) of
   (Snot g k , n) -> checkTerm g (AVj (n - 1)) (sub (AVj 0) 0 tp) >> Ok ()
   (Snok g k , n) -> checkTerm g (AVj (n - 1)) (sub (AVj 0) 0 tp) >> Ok ()
 checkTerm g (ALamj t) k = case sdev k of
-  APit tp1 tp2 -> checkTerm (Snot g tp1) t tp2 >> Ok ()
+  APit tp1 tp2 -> checkTerm (Snot g tp1) (sdev t) tp2 >> Ok ()
   _ -> Bad "Lambdas must be pi-types."
 checkTerm g (LAMj t) k = case sdev k of
-  AAllt tp1 tp2 -> checkTerm (Snot g tp1) t tp2 >> Ok ()
+  AAllt tp1 tp2 -> checkTerm (Snot g tp1) (sdev t) tp2 >> Ok ()
   _ -> Bad "Implicit lambdas must be implicit products."
 checkTerm g (LAMt t) k = case sdev k of
-  AAllk tp1 tp2 -> checkTerm (Snok g tp1) t tp2 >> Ok ()
+  AAllk tp1 tp2 -> checkTerm (Snok g tp1) (sdev t) tp2 >> Ok ()
   _ -> Bad "Type-Lambdas must be type-products."
 checkTerm g (AAppj (ALamj t) s) tp = checkTerm g (sub s 0 t) tp >> Ok ()
 checkTerm g (AAppj t t1) tp = case inferTerm g (sdev (AAppj t t1)) of
@@ -293,7 +321,7 @@ checkTerm g (Appi t t1) tp = case inferTerm g (sdev (Appi t t1)) of
 checkTerm g (IPair t1 t2) k = case sdev k of
   AIota tp1 tp2 ->
     if normalize (erase t1) == normalize (erase t2)
-    then checkTerm g t1 tp1 >> checkTerm g t2 (sub t1 0 tp2) >> Ok ()
+    then checkTerm g (sdev t1) tp1 >> checkTerm g (sdev t2) (sub (sdev t1) 0 tp2) >> Ok ()
     else Bad "Iota constructor does not erase properly."
   _ -> Bad "Iota contructor must be a dependent intersection."
 checkTerm g (Fst t) tp = case inferTerm g (Fst (sdev t)) of

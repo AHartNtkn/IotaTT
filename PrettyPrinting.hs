@@ -36,6 +36,8 @@ parenT i a@(AAllt _ _) = "(" ++ printT i a ++ ")"
 parenT i a@(AIota _ _) = "(" ++ printT i a ++ ")"
 parenT i a@(AId _ _) = "(" ++ printT i a ++ ")"
 parenT i a@(ALamt _ _) = "(" ++ printT i a ++ ")"
+parenT i a@(ALAMk _ _) = "(" ++ printT i a ++ ")"
+parenT i a@(AAppk _ _) = "(" ++ printT i a ++ ")"
 parenT i a = printT i a
 
 printT :: Int -> AType -> String
@@ -45,10 +47,12 @@ printT i (APit a b) =
   then "(" ++ char i ++ " : " ++ printT i a ++ ") -> " ++ printT (1 + i) b
   else parenT i a ++ " -> " ++ printT (1 + i) b
 printT i (AAllk a b) = "A(" ++ char i ++ " : " ++ printK i a ++ ") . " ++ printT (1 + i) b
-printT i (ALamt a b) = "\\(" ++ char i ++ " : " ++ printT i a ++ ") -> " ++ printT (1 + i) a
-printT i (AAppt a b) = printT i a ++ " " ++ printA i b
+printT i (ALamt a b) = "\\(" ++ char i ++ " : " ++ printT i a ++ ") . " ++ printT (1 + i) b
+printT i (ALAMk a b) = "V (" ++ char i ++ " : " ++ printK i a ++ ") . " ++ printT (1 + i) b
+printT i (AAppt a b) = printT i a ++ " " ++ parenA i b
+printT i (AAppk a b) = printT i a ++ " + " ++ parenT i b
 printT i (AAllt a b) = "{" ++ char i ++ " : " ++ printT i a ++ "} -> " ++ printT (1 + i) b
-printT i (AIota a b) = "i(" ++ char i ++ " : " ++ printT i a ++ ") . " ++ printT (1 + i) a 
+printT i (AIota a b) = "i(" ++ char i ++ " : " ++ printT i a ++ ") . " ++ printT (1 + i) b 
 printT i (AId a b) = printA i a ++ " ~ " ++ printA i b
 
 parenK :: Int -> AKind -> String
@@ -61,6 +65,7 @@ printK i (APik a b) =
   if freeIn b 0
   then "(" ++ char i ++ " : " ++ printT i a ++ ") -> " ++ printK (1 + i) b
   else parenT i a ++ " -> " ++ printK (1 + i) b
+printK i (AAlltk a b) = "A (" ++ char i ++ " : " ++ printK i a ++ ") . " ++ printK (1 + i) b
 
 
 parenD :: Int -> DB -> String
@@ -74,7 +79,7 @@ printD i (Lamj a) = "\\" ++ char i ++ " -> " ++ printD (1 + i) a
 
 instance Show DB where 
   show = printD 0
-
+{-
 instance Show ADB where 
   show = printA 0
 
@@ -83,3 +88,4 @@ instance Show AType where
 
 instance Show AKind where 
   show = printK 0
+-}

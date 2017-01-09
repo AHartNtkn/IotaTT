@@ -45,6 +45,8 @@ data IType
    | IPit String IType IType
    | ILamt String IType IType
    | IAppt IType IADB
+   | ILAMk String IKind IType
+   | IAppk IType IType
    | IAllt String IType IType
    | IIota String IType IType
    | IId IADB IADB
@@ -53,6 +55,7 @@ data IType
 data IKind
    = IStar
    | IPik String IType IKind
+   | IAlltk String IKind IKind
    deriving (Show)
 
 {- Convert intermediate syntax into abstract syntax -}
@@ -80,6 +83,8 @@ indexT s n (IAllk x d d1) = IAllk x (indexK s n d) (indexT s (1 + n) (indexT x 0
 indexT s n (IPit x d d1) = IPit x (indexT s n d) (indexT s (1 + n) (indexT x 0 d1))
 indexT s n (ILamt x d d1) = ILamt x (indexT s n d) (indexT s (1 + n) (indexT x 0 d1))
 indexT s n (IAppt d x) = IAppt (indexT s n d) (indexA s n x)
+indexT s n (ILAMk x d d1) = ILAMk x (indexK s n d) (indexT s (1 + n) (indexT x 0 d1))
+indexT s n (IAppk d x) = IAppk (indexT s n d) (indexT s n x)
 indexT s n (IAllt x d d1) = IAllt x (indexT s n d) (indexT s (1 + n) (indexT x 0 d1))
 indexT s n (IIota x d d1) = IIota x (indexT s n d) (indexT s (1 + n) (indexT x 0 d1))
 indexT s n (IId d x) = IId (indexA s n d) (indexA s n x)
@@ -87,6 +92,7 @@ indexT s n (IId d x) = IId (indexA s n d) (indexA s n x)
 indexK :: String -> Int -> IKind -> IKind
 indexK s n IStar = IStar
 indexK s n (IPik x d d1) = IPik x (indexT s n d) (indexK s (1 + n) (indexK x 0 d1))
+indexK s n (IAlltk x d d1) = IAlltk x (indexK s n d) (indexK s (1 + n) (indexK x 0 d1))
 
 -- Convert intermediate syntax into abstract syntax
 fromInterA :: TopCtx -> IADB -> Err ADB
@@ -112,6 +118,8 @@ fromInterT g (IAllk x x1 d) = fromInterK g x1 >>= \dx1 -> fromInterT g d >>= Ok 
 fromInterT g (IPit x d d1) = fromInterT g d >>= \dd -> fromInterT g d1 >>= Ok . APit dd
 fromInterT g (ILamt x d d1) = fromInterT g d >>= \dd -> fromInterT g d1 >>= Ok . ALamt dd
 fromInterT g (IAppt d x) = fromInterT g d >>= \dd -> fromInterA g x >>= Ok . AAppt dd
+fromInterT g (ILAMk x d d1) = fromInterK g d >>= \dd -> fromInterT g d1 >>= Ok . ALAMk dd
+fromInterT g (IAppk d x) = fromInterT g d >>= \dd -> fromInterT g x >>= Ok . AAppk dd
 fromInterT g (IAllt x d d1) = fromInterT g d >>= \dd -> fromInterT g d1 >>= Ok . AAllt dd
 fromInterT g (IIota x d d1) = fromInterT g d >>= \dd -> fromInterT g d1 >>= Ok . AIota dd
 fromInterT g (IId x y) = fromInterA g x >>= \dx -> fromInterA g y >>= Ok . AId dx
@@ -119,6 +127,7 @@ fromInterT g (IId x y) = fromInterA g x >>= \dx -> fromInterA g y >>= Ok . AId d
 fromInterK :: TopCtx -> IKind -> Err AKind
 fromInterK g IStar = Ok AStar
 fromInterK g (IPik x x1 d) = fromInterT g x1 >>= \dx1 -> fromInterK g d >>= Ok . APik dx1
+fromInterK g (IAlltk x x1 d) = fromInterK g x1 >>= \dx1 -> fromInterK g d >>= Ok . AAlltk dx1
 
 {- Convert concrete syntax into intermediate syntax -}
 fromConA :: Exp -> Err IADB
@@ -144,6 +153,9 @@ fromConA _ = Bad "Parsing Error"
 fromConT :: Exp -> Err IType
 fromConT (SLamt (PTele (SVar (AIdent e)) t : []) o) = fromConT t >>= \ct -> fromConT o >>= Ok . ILamt e ct
 fromConT (SLamt (PTele (SVar (AIdent e)) t : l) o) = fromConT t >>= \ct -> fromConT (SLamt l o) >>= Ok . ILamt e ct
+fromConT (SLamkt (PTele (SVar (AIdent e)) t : []) o) = fromConK t >>= \ct -> fromConT o >>= Ok . ILAMk e ct
+fromConT (SLamkt (PTele (SVar (AIdent e)) t : l) o) = fromConK t >>= \ct -> fromConT (SLamkt l o) >>= Ok . ILAMk e ct
+fromConT (STApp a b) = fromConT a >>= \ca -> fromConT b >>= Ok . IAppk ca
 fromConT (SApp a b) = fromConT a >>= \ca -> fromConA b >>= Ok . IAppt ca
 fromConT (SFun a b) = fromConT a >>= \ca -> fromConT b >>= Ok . IPit "" ca
 fromConT (SPi (PTele (SVar (AIdent e)) t : []) o) = fromConT t >>= \ct -> fromConT o >>= Ok . IPit e ct
@@ -162,6 +174,8 @@ fromConK SU = Ok IStar
 fromConK (SFun a b) = fromConT a >>= \ca -> fromConK b >>= Ok . IPik "" ca
 fromConK (SPi (PTele (SVar (AIdent e)) t : []) o) = fromConT t >>= \ct -> fromConK o >>= Ok . IPik e ct
 fromConK (SPi (PTele (SVar (AIdent e)) t : l) o) = fromConT t >>= \ct -> fromConK (SPi l o) >>= Ok . IPik e ct
+fromConK (SAll (PTele (SVar (AIdent e)) t : []) o) = fromConK t >>= \ct -> fromConK o >>= Ok . IAlltk e ct
+fromConK (SAll (PTele (SVar (AIdent e)) t : l) o) = fromConK t >>= \ct -> fromConK (SAll l o) >>= Ok . IAlltk e ct
 fromConK _ = Bad "Parsing Error"
 
 {- Convert Concrete Syntax into Abstract Syntax -}
