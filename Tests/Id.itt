@@ -21,7 +21,7 @@ J : A (T : *) . (a : T) (b : T) ->
   = V T . \ a , b .
     V C . \ cr , x .
       x.2
-        + (\(a : T) (b : T) (u : cId +T a b) . A (X : *) . ((x : Id +T a b) -> u ~ x -> C a b x -> X) -> X)
+        + (\(a : T) (b : T) (u : cId +T a b) . A (X : *) . ((x : Id +T a b) -> x ~ u -> C a b x -> X) -> X)
         (V X . \ ih . ih (Refl +T a) B cr)
         + (C a b x)
-        (\ y , e , cy . r (x : C a b x) (r (o : o ~ x) e . B) . cy)
+        (\ y , e , cy . r (x : C a b x) e . cy)
