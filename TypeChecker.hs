@@ -197,16 +197,16 @@ checkType g (AVt n) ka = case (g , n) of
     False -> Bad "Type does not have correct kind."
   (Snot g _ , n) -> checkType g (AVt (n - 1)) (sub (AVj 0) 0 ka) >> Ok ()
   (Snok g _ , n) -> checkType g (AVt (n - 1)) (sub (AVt 0) 0 ka) >> Ok ()
-checkType g (AAllk x tp) AStar = checkKind g x >> checkType (Snok g x) tp AStar >> Ok ()
+checkType g (AAllk x tp) AStar = checkKind g (sdev x) >> checkType (Snok g (sdev x)) (sdev tp) AStar >> Ok ()
 checkType g (AAllk x tp) _ = Bad "Type-level products can only have AStar kind."
 checkType g (APit tp tp1) AStar = checkType g tp AStar >> checkType (Snot g tp) tp1 AStar >> Ok ()
 checkType g (APit tp tp1) _ = Bad "Pi types can only have AStar kind."
-checkType g (ALamt tp1 tpp) (APik tp2 ka) = case tp1 == tp2 of
-  True -> checkType g tp2 AStar >> checkType (Snot g tp2) tpp ka >> Ok ()
+checkType g (ALamt tp1 tpp) (APik tp2 ka) = case normalize tp1 == normalize tp2 of
+  True -> checkType g (sdev tp2) AStar >> checkType (Snot g (sdev tp2)) (sdev tpp) ka >> Ok ()
   False -> Bad "Lambda binds wring type for Pi" 
 checkType g (ALamt tp tpp) _ = Bad "Type-level lambdas can only have type APik"
-checkType g (ALAMk tp1 tpp) (AAlltk tp2 ka) = case tp1 == tp2 of
-  True -> checkKind g tp2 >> checkType (Snok g tp2) tpp ka >> Ok ()
+checkType g (ALAMk tp1 tpp) (AAlltk tp2 ka) = case normalize tp1 == normalize tp2 of
+  True -> checkKind g (sdev tp2) >> checkType (Snok g (sdev tp2)) (sdev tpp) ka >> Ok ()
   False -> Bad "Lambda binds wring type for Pi"
 checkType g (ALAMk tp tpp) _ = Bad "Type-level kind lambdas can only have type AAlltk"
 checkType g (AAppt tp t) ka = case inferType g (sdev (AAppt tp t)) of
@@ -221,9 +221,9 @@ checkType g (AAppk tp t) ka = case inferType g (sdev (AAppk tp t)) of
     if ka == k
     then Ok ()
     else Bad "Failed to unify at type-level type application"
-checkType g (AAllt tp tpp) AStar = checkType g tp AStar >> checkType (Snot g tp) tpp AStar >> Ok ()
+checkType g (AAllt tp tpp) AStar = checkType g (sdev tp) AStar >> checkType (Snot g (sdev tp)) (sdev tpp) AStar >> Ok ()
 checkType g (AAllt x tp) _ = Bad "Implicit products can only have AStar kind."
-checkType g (AIota tp tpp) AStar = checkType g tp AStar >> checkType (Snot g tp) tpp AStar >> Ok ()
+checkType g (AIota tp tpp) AStar = checkType g (sdev tp) AStar >> checkType (Snot g (sdev tp)) (sdev tpp) AStar >> Ok ()
 checkType g (AIota x tp) _ = Bad "Dependent intersections can only have AStar kind."
 checkType g (AId x y) AStar = Ok ()
 checkType g (AId x y) _ = Bad "Heterogenious equalities can only have AStar kind."
@@ -283,7 +283,7 @@ checkTerm :: Ctx -> ADB -> AType -> Err ()
 checkTerm g (AVj n) tp = case (g , n) of 
   (Empty , _) -> Bad "Cannot check type of variable term in empty context."
   (Snot g x , 0) -> case normalize (eraseAType tp) == normalize (eraseAType (incFree x 0 1)) of
-    True -> checkType (Snot g x) tp AStar >> checkType g x AStar >> Ok ()
+    True -> checkType (Snot g (sdev x)) (sdev tp) AStar >> checkType g (sdev x) AStar >> Ok ()
     False -> Bad "Term does not have correct type."
   (Snok g k , 0) -> checkTerm g (AVj (n - 1)) (sub (AVt 0) 0 tp) >> Ok ()
   (Snot g k , n) -> checkTerm g (AVj (n - 1)) (sub (AVj 0) 0 tp) >> Ok ()

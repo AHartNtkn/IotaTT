@@ -348,6 +348,9 @@ instance Norm ADB where
   ssEval (Appi (LAMj tp) s) = sub s 0 tp
   ssEval (LAMj (Appi tp (AVj 0))) =
     if freeIn tp 0 then LAMj (Appi tp (AVj 0)) else sub (ALamj (AVj 0)) 0 tp
+  ssEval (Fst (IPair d b)) = d
+  ssEval (Snd (IPair d b)) = b
+  ssEval (Rho Beta _ b) = b
   ssEval tp = tp
 
   sdev (AVj x)     = AVj x
@@ -358,10 +361,10 @@ instance Norm ADB where
   sdev (LAMt d)    = ssEval (LAMt (sdev d))
   sdev (Appi d b)  = ssEval (Appi (sdev d) (sdev b))
   sdev (IPair d b) = IPair (sdev d) (sdev b)
-  sdev (Fst d)     = Fst (sdev d)
-  sdev (Snd d)     = Snd (sdev d)
+  sdev (Fst d)     = ssEval (Fst (sdev d))
+  sdev (Snd d)     = ssEval (Snd (sdev d))
   sdev Beta        = Beta
-  sdev (Rho d x b) = Rho (sdev d) (sdev x) (sdev b)
+  sdev (Rho d x b) = ssEval (Rho (sdev d) (sdev x) (sdev b))
 
 instance Norm AType where
   ssEval (AAppt (ALamt t tp) s) = sub s 0 tp
