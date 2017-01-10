@@ -5,144 +5,6 @@ module TypeChecker where
 import ErrM
 import AbstractSyntax
 
-{- Attempt reversing a substituted variable -}
-reverseSubA :: ADB -> ADB  -> Int -> ADB
-reverseSubA s (AVj x) n = case x >= n of
-  True -> AVj (1 + x)
-  False -> AVj x
-reverseSubA s (ALamj d) n = case (incFree s 0 1) == d of
-  True -> ALamj (AVj (1 + n))
-  False -> ALamj (reverseSubA (incFree s 0 1) d (1 + n))
-reverseSubA s (AAppj d b) n = case (s == d , s == b) of
-  (True , True)  -> AAppj (AVj n) (AVj n)
-  (False , True) -> AAppj (reverseSubA s d n) (AVj n)
-  (True , False) -> AAppj (AVj n) (reverseSubA s b n)
-  (False , False) -> AAppj (reverseSubA s d n) (reverseSubA s b n)
-reverseSubA s (LAMj d) n = case (incFree s 0 1) == d of
-  True -> LAMj (AVj (1 + n))
-  False -> LAMj (reverseSubA (incFree s 0 1) d (1 + n))
-reverseSubA s (Apptj d x) n = case s == d of
-  True -> Apptj (AVj n) (reverseSubT s x n)
-  False -> Apptj (reverseSubA s d n) (reverseSubT s x n)
-reverseSubA s (LAMt d) n = case (incFree s 0 1) == d of
-  True -> LAMt (AVj (1 + n))
-  False -> LAMt (reverseSubA (incFree s 0 1) d (1 + n))
-reverseSubA s (Appi d b) n = case (s == d , s == b) of
-  (True , True)  -> Appi (AVj n) (AVj n)
-  (False , True) -> Appi (reverseSubA s d n) (AVj n)
-  (True , False) -> Appi (AVj n) (reverseSubA s b n)
-  (False , False) -> Appi (reverseSubA s d n) (reverseSubA s b n)
-reverseSubA s (IPair d b) n = case (s == d , s == b) of
-  (True , True)  -> IPair (AVj n) (AVj n)
-  (False , True) -> IPair (reverseSubA s d n) (AVj n)
-  (True , False) -> IPair (AVj n) (reverseSubA s b n)
-  (False , False) -> IPair (reverseSubA s d n) (reverseSubA s b n)
-reverseSubA s (Fst d) n = case s == d of
-  True -> Fst (AVj n)
-  False -> Fst (reverseSubA s d n)
-reverseSubA s (Snd d) n = case s == d of
-  True -> Snd (AVj n)
-  False -> Snd (reverseSubA s d n)
-reverseSubA s Beta n = Beta
-reverseSubA s (Rho d x b) n = case (s == d , s == b) of
-  (True , True)  -> Rho (AVj n) (reverseSubT (incFree s 0 1) x (1 + n)) (AVj n)
-  (False , True) -> Rho (reverseSubA s d n) (reverseSubT (incFree s 0 1) x (1 + n)) (AVj n)
-  (True , False) -> Rho (AVj n) (reverseSubT (incFree s 0 1) x (1 + n)) (reverseSubA s b n)
-  (False , False) -> Rho (reverseSubA s d n) (reverseSubT (incFree s 0 1) x (1 + n)) (reverseSubA s b n)
-
-reverseSubT :: ADB -> AType -> Int -> AType
-reverseSubT s (AVt x) n = case x >= n of
-  True -> AVt (1 + x)
-  False -> AVt x
-reverseSubT s (AAllk x t) n = AAllk (reverseSubK s x n) (reverseSubT (incFree s 0 1) t (1 + n))
-reverseSubT s (APit x t)  n = APit (reverseSubT s x n) (reverseSubT (incFree s 0 1) t (1 + n))
-reverseSubT s (ALamt x t) n = ALamt (reverseSubT s x n) (reverseSubT (incFree s 0 1) t (1 + n))
-reverseSubT s (AAppt t x) n = case s == x of
-  True -> AAppt (reverseSubT s t n) (AVj n)
-  False -> AAppt (reverseSubT s t n) (reverseSubA s x n)
-reverseSubT s (ALAMk x t) n = ALAMk (reverseSubK s x n) (reverseSubT (incFree s 0 1) t (1 + n))
-reverseSubT s (AAppk t x) n = AAppk (reverseSubT s t n) (reverseSubT s x n)
-reverseSubT s (AAllt x t) n = AAllt (reverseSubT s x n) (reverseSubT (incFree s 0 1) t (1 + n))
-reverseSubT s (AIota x t) n = AIota (reverseSubT s x n) (reverseSubT (incFree s 0 1) t (1 + n))
-reverseSubT s (AId x y) n = case (s == x , s == y) of
-  (True , True)  -> AId (AVj n) (AVj n)
-  (False , True) -> AId (reverseSubA s x n) (AVj n)
-  (True , False) -> AId (AVj n) (reverseSubA s y n)
-  (False , False) -> AId (reverseSubA s x n) (reverseSubA s y n)
-
-reverseSubK :: ADB -> AKind -> Int -> AKind
-reverseSubK s AStar n = AStar
-reverseSubK s (APik x k) n = APik (reverseSubT s x n) (reverseSubK (incFree s 0 1) k (1 + n))
-reverseSubK s (AAlltk x k) n = AAlltk (reverseSubK s x n) (reverseSubK (incFree s 0 1) k (1 + n))
-
--- Reverse type substitutions
-reverseSubTA :: AType -> ADB  -> Int -> ADB
-reverseSubTA s (AVj x) n = case x >= n of
-  True -> AVj (1 + x) 
-  False -> AVj x
-reverseSubTA s (ALamj d) n = ALamj (reverseSubTA (incFree s 0 1) d (1 + n))
-reverseSubTA s (AAppj d b) n = AAppj (reverseSubTA s d n) (reverseSubTA s b n)
-reverseSubTA s (LAMj d) n = LAMj (reverseSubTA (incFree s 0 1) d (1 + n))
-reverseSubTA s (Apptj d x) n = case s == x of
-  True -> Apptj (reverseSubTA s d n) (AVt n)
-  False -> Apptj (reverseSubTA s d n) (reverseSubTT s x n)
-reverseSubTA s (LAMt d) n = LAMt (reverseSubTA (incFree s 0 1) d (1 + n))
-reverseSubTA s (Appi d b) n = Appi (reverseSubTA s d n) (reverseSubTA s b n)
-reverseSubTA s (IPair d b) n = IPair (reverseSubTA s d n) (reverseSubTA s b n)
-reverseSubTA s (Fst d) n = Fst (reverseSubTA s d n)
-reverseSubTA s (Snd d) n = Snd (reverseSubTA s d n)
-reverseSubTA s Beta n = Beta
-reverseSubTA s (Rho d x b) n = case incFree s 0 1 == x of
-  True -> Rho (reverseSubTA s d n) (AVt (1 + n)) (reverseSubTA s b n)
-  False -> Rho (reverseSubTA s d n) (reverseSubTT (incFree s 0 1) x (1 + n)) (reverseSubTA s b n)
-
-reverseSubTT :: AType -> AType -> Int -> AType
-reverseSubTT s (AVt x) n = case x >= n of
-  True -> AVt (1 + x)
-  False -> AVt x
-reverseSubTT s (AAllk x t) n = case (incFree s 0 1) == t of
-  True -> AAllk (reverseSubTK s x n) (AVt (1 + n))
-  False -> AAllk (reverseSubTK s x n) (reverseSubTT (incFree s 0 1) t (1 + n))
-reverseSubTT s (APit x t) n = case (s == x , incFree s 0 1 == t) of
-  (True , True)  -> APit (AVt n) (AVt (1 + n))
-  (False , True) -> APit (reverseSubTT s x n) (AVt (1 + n))
-  (True , False) -> APit (AVt n) (reverseSubTT (incFree s 0 1) t (1 + n))
-  (False , False) -> APit (reverseSubTT s x n) (reverseSubTT (incFree s 0 1) t (1 + n))
-reverseSubTT s (ALamt x t) n = case (s == x , incFree s 0 1 == t) of
-  (True , True)  -> ALamt (AVt n) (AVt (1 + n))
-  (False , True) -> ALamt (reverseSubTT s x n) (AVt (1 + n))
-  (True , False) -> ALamt (AVt n) (reverseSubTT (incFree s 0 1) t (1 + n))
-  (False , False) -> ALamt (reverseSubTT s x n) (reverseSubTT (incFree s 0 1) t (1 + n))
-reverseSubTT s (AAppk d b) n = case (s == d , s == b) of
-  (True , True)  -> AAppk (AVt n) (AVt n)
-  (False , True) -> AAppk (reverseSubTT s d n) (AVt n)
-  (True , False) -> AAppk (AVt n) (reverseSubTT s b n)
-  (False , False) -> AAppk (reverseSubTT s d n) (reverseSubTT s b n)
-reverseSubTT s (ALAMk x t) n = case incFree s 0 1 == t of
-  True -> ALAMk (reverseSubTK s x n) (AVt (1 + n))
-  False -> ALAMk (reverseSubTK s x n) (reverseSubTT (incFree s 0 1) t (1 + n))
-reverseSubTT s (AAppt t x) n = case s == t of
-  True -> AAppt (AVt n) (reverseSubTA s x n)
-  False -> AAppt (reverseSubTT s t n) (reverseSubTA s x n)
-reverseSubTT s (AAllt x t) n = case (s == x , (incFree s 0 1) == t) of
-  (True , True)  -> AAllt (AVt n) (AVt (1 + n))
-  (False , True) -> AAllt (reverseSubTT s x n) (AVt (1 + n))
-  (True , False) -> AAllt (AVt n) (reverseSubTT (incFree s 0 1) t (1 + n))
-  (False , False) -> AAllt (reverseSubTT s x n) (reverseSubTT (incFree s 0 1) t (1 + n))
-reverseSubTT s (AIota x t) n = case (s == x , (incFree s 0 1) == t) of
-  (True , True)  -> AIota (AVt n) (AVt (1 + n))
-  (False , True) -> AIota (reverseSubTT s x n) (AVt (1 + n))
-  (True , False) -> AIota (AVt n) (reverseSubTT (incFree s 0 1) t (1 + n))
-  (False , False) -> AIota (reverseSubTT s x n) (reverseSubTT (incFree s 0 1) t (1 + n))
-reverseSubTT s (AId d b) n = AId (reverseSubTA s d n) (reverseSubTA s b n)
-
-reverseSubTK :: AType -> AKind -> Int -> AKind
-reverseSubTK s AStar n = AStar
-reverseSubTK s (APik x k) n = case s == x of
-  True -> APik (AVt n) (reverseSubTK (incFree s 0 1) k (1 + n))
-  False -> APik (reverseSubTT s x n) (reverseSubTK (incFree s 0 1) k (1 + n))
-reverseSubTK s (AAlltk x k) n = AAlltk (reverseSubTK s x n) (reverseSubTK (incFree s 0 1) k (1 + n))
-
 {- The Type Checker -}
 data Ctx = Empty
          | Snok Ctx AKind
@@ -160,18 +22,8 @@ inferType g (AVt n) = case (g , n) of
   (Empty , _) -> Bad "Cannot infer Kind of variable in empty context"
   (Snot g _ , 0) -> Bad "Type cannot be infered to be a Kind"
   (Snok g k , 0) -> checkKind g k >> Ok (incFree k 0 1)
-  (Snot g k , n) -> case inferType g (AVt (n - 1)) of -- Is there a better way to do this?
-    Bad s -> Bad s
-    Ok t -> 
-      if t == sub (AVj 0) 0 (reverseSubK (AVj 0) t 0)
-      then Ok (reverseSubK (AVj 0) t 0)
-      else Bad "Cannot weaken type (Type)"
-  (Snok g k , n) -> case inferType g (AVt (n - 1)) of -- Is there a better way to do this?
-    Bad s -> Bad s
-    Ok t -> 
-      if t == sub (AVt 0) 0 (reverseSubTK (AVt 0) t 0)
-      then Ok (reverseSubTK (AVt 0) t 0)
-      else Bad "Cannot weaken type (Kind)"
+  (Snot g k , n) -> inferType g (AVt (n - 1)) >>= \t -> Ok (incFree t 0 1)
+  (Snok g k , n) -> inferType g (AVt (n - 1)) >>= \t -> Ok (incFree t 0 1)
 inferType g (AAllk x tp) = checkKind g x >> checkType (Snok g x) tp AStar >> Ok (AStar)
 inferType g (APit tp tpp) = checkType g tp AStar >> checkType (Snot g tp) tpp AStar >> Ok (AStar)
 inferType g (ALamt tp tpp) = checkType g tp AStar >> inferType (Snot g tp) tpp >>= \ it -> Ok (APik tp it)
@@ -231,20 +83,10 @@ checkType g (AId x y) _ = Bad "Heterogenious equalities can only have AStar kind
 inferTerm :: Ctx -> ADB -> Err AType
 inferTerm g (AVj n) = case (g , n) of
   (Empty , _) -> Bad "Cannot infer term variable in empty context."
-  (Snot g x , 0) -> checkType g x AStar >> Ok (sdev (incFree x 0 1))
+  (Snot g x , 0) -> checkType g (sdev x) AStar >> Ok (sdev (incFree x 0 1))
   (Snok g k , 0) -> Bad "Term cannot be infered to have a kind."
-  (Snot g k , n) -> case inferTerm g (AVj (n - 1)) of -- There's got to be a better way to do this.
-    Bad s -> Bad s
-    Ok t ->
-      if t == (sub (AVj 0) 0 (reverseSubT (AVj 0) t 0))
-      then Ok (reverseSubT (AVj 0) t 0)
-      else Bad "Cannot weaken term (Type)"
-  (Snok g k , n) -> case inferTerm g (AVj (n - 1)) of -- There's got to be a better way to do this.
-    Bad s -> Bad s
-    Ok t -> 
-      if t == sub (AVt 0) 0 (reverseSubTT (AVt 0) t 0)
-      then Ok (reverseSubTT (AVt 0) t 0)
-      else Bad "Cannot weaken term (Kind)"
+  (Snot g k , n) -> inferTerm g (AVj (n - 1)) >>= \t -> Ok (incFree t 0 1)
+  (Snok g k , n) -> inferTerm g (AVj (n - 1)) >>= \t -> Ok (incFree t 0 1)
 inferTerm g (ALamj t) = Bad "Cannot infer the type of a lambda term."
 inferTerm g (LAMj t) = Bad "Cannot infer the type of an implicit lambda term."
 inferTerm g (LAMt t) = Bad "Cannot infer the type of a type-lambda term."
