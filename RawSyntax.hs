@@ -16,174 +16,105 @@ import Data.HashMap.Strict (HashMap, (!))
 import qualified Data.HashMap.Strict as HM
 
 {- The context used by the interpreter -}
-type TopCtx = [(String, Either (AType, AKind) (ADB, AType))]
+type TopCtx = [(String, (ATerm, ATerm))]
 
 errLookup :: (Show a, Eq a) => a -> [(a, b)] -> Err b
 errLookup a l = (\case { Nothing -> Bad ("Failed to locate "++ show a++".") ; Just k -> Ok k}) (lookup a l)
 
 {- Intermediate raw instax -}
-data IADB
-   = IVSj String
-   | IVj Int
-   | ILamj String IADB
-   | IAppj IADB IADB
-   | ILAMj String IADB
-   | IApptj IADB IType
-   | ILAMt String IADB
-   | IAppi IADB IADB
-   | IIPair IADB IADB
-   | IFst IADB
-   | ISnd IADB
+data ITerm
+   = IVS String
+   | IV Int
+   | ILam String ITerm
+   | IAnn ITerm ITerm
+   | IApp ITerm ITerm
+   | ILAM String ITerm
+   | IAppi ITerm ITerm
+   | IIPair ITerm ITerm
+   | IFst ITerm
+   | ISnd ITerm
    | IBeta
-   | IRho IADB String IType IADB
-   deriving (Show)
-
-data IType
-   = IVSt String
-   | IVt Int
-   | IAllk String IKind IType
-   | IPit String IType IType
-   | ILamt String IType IType
-   | IAppt IType IADB
-   | ILAMk String IKind IType
-   | IAppk IType IType
-   | IAllt String IType IType
-   | IIota String IType IType
-   | IId IADB IADB
-   deriving (Show)
-
-data IKind
-   = IStar
-   | IPik String IType IKind
-   | IAlltk String IKind IKind
+   | IRho ITerm String ITerm ITerm
+   | IPit String ITerm ITerm
+   | IIPi String ITerm ITerm
+   | IIota String ITerm ITerm
+   | IId ITerm ITerm
+   | IStar
    deriving (Show)
 
 {- Convert intermediate syntax into abstract syntax -}
 
 -- Replace string variables with deBruijin indices
-indexA :: String -> Int -> IADB -> IADB
-indexA s n (IVSj x) = if s == x then IVj n else IVSj x
-indexA s n (IVj x) = IVj x
-indexA s n (ILamj x d) = ILamj x (indexA s (1 + n) (indexA x 0 d))
-indexA s n (IAppj d d1) = IAppj (indexA s n d) (indexA s n d1)
-indexA s n (ILAMj x d) = ILAMj x (indexA s (1 + n) (indexA x 0 d))
-indexA s n (IApptj d x) = IApptj (indexA s n d) (indexT s n x)
-indexA s n (ILAMt x d) = ILAMt x (indexA s (1 + n) (indexA x 0 d))
-indexA s n (IAppi d d1) = IAppi (indexA s n d) (indexA s n d1)
-indexA s n (IIPair d d1) = IIPair (indexA s n d) (indexA s n d1)
-indexA s n (IFst d) = IFst (indexA s n d)
-indexA s n (ISnd d) = ISnd (indexA s n d)
-indexA s n IBeta = IBeta
-indexA s n (IRho d x tp d1) = IRho (indexA s n d) x (indexT s (1 + n) (indexT x 0 tp)) (indexA s n d1)
-
-indexT :: String -> Int -> IType -> IType
-indexT s n (IVSt x) = if s == x then IVt n else IVSt x
-indexT s n (IVt x) = IVt x
-indexT s n (IAllk x d d1) = IAllk x (indexK s n d) (indexT s (1 + n) (indexT x 0 d1))
-indexT s n (IPit x d d1) = IPit x (indexT s n d) (indexT s (1 + n) (indexT x 0 d1))
-indexT s n (ILamt x d d1) = ILamt x (indexT s n d) (indexT s (1 + n) (indexT x 0 d1))
-indexT s n (IAppt d x) = IAppt (indexT s n d) (indexA s n x)
-indexT s n (ILAMk x d d1) = ILAMk x (indexK s n d) (indexT s (1 + n) (indexT x 0 d1))
-indexT s n (IAppk d x) = IAppk (indexT s n d) (indexT s n x)
-indexT s n (IAllt x d d1) = IAllt x (indexT s n d) (indexT s (1 + n) (indexT x 0 d1))
-indexT s n (IIota x d d1) = IIota x (indexT s n d) (indexT s (1 + n) (indexT x 0 d1))
-indexT s n (IId d x) = IId (indexA s n d) (indexA s n x)
-
-indexK :: String -> Int -> IKind -> IKind
-indexK s n IStar = IStar
-indexK s n (IPik x d d1) = IPik x (indexT s n d) (indexK s (1 + n) (indexK x 0 d1))
-indexK s n (IAlltk x d d1) = IAlltk x (indexK s n d) (indexK s (1 + n) (indexK x 0 d1))
+index :: String -> Int -> ITerm -> ITerm
+index s n (IVS x) = if s == x then IV n else IVS x
+index s n (IV x) = IV x
+index s n (ILam x d) = ILam x (index s (1 + n) (index x 0 d))
+index s n (IAnn d d1) = IAnn (index s n d) (index s n d1)
+index s n (IApp d d1) = IApp (index s n d) (index s n d1)
+index s n (ILAM x d) = ILAM x (index s (1 + n) (index x 0 d))
+index s n (IAppi d d1) = IAppi (index s n d) (index s n d1)
+index s n (IIPair d d1) = IIPair (index s n d) (index s n d1)
+index s n (IFst d) = IFst (index s n d)
+index s n (ISnd d) = ISnd (index s n d)
+index s n IBeta = IBeta
+index s n (IRho d x tp d1) = IRho (index s n d) x (index s (1 + n) (index x 0 tp)) (index s n d1)
+index s n (IPit x d d1) = IPit x (index s n d) (index s (1 + n) (index x 0 d1))
+index s n (IIPi x d d1) = IIPi x (index s n d) (index s (1 + n) (index x 0 d1))
+index s n (IIota x d d1) = IIota x (index s n d) (index s (1 + n) (index x 0 d1))
+index s n (IId d x) = IId (index s n d) (index s n x)
+index s n IStar = IStar
 
 -- Convert intermediate syntax into abstract syntax
-fromInterA :: TopCtx -> IADB -> Err ADB
-fromInterA g (IVj x) = Ok (AVj x)
-fromInterA g (IVSj x) = errLookup x g >>= \case { Left _ -> Bad "Lookup had wron sort." ; Right (a , _) -> Ok a }
-fromInterA g (ILamj x d) = fromInterA g d >>= Ok . ALamj
-fromInterA g (IAppj d d1) = fromInterA g d >>= \dd -> fromInterA g d1 >>= Ok . AAppj dd
-fromInterA g (ILAMj x d) = fromInterA g d >>= Ok . LAMj
-fromInterA g (IApptj d x) = fromInterA g d >>= \dd -> fromInterT g x >>= Ok . Apptj dd
-fromInterA g (ILAMt x d) = fromInterA g d >>= Ok . LAMt
-fromInterA g (IAppi d d1) = fromInterA g d >>= \dd -> fromInterA g d1 >>= Ok . Appi dd
-fromInterA g (IIPair d d1) = fromInterA g d >>= \dd -> fromInterA g d1 >>= Ok . IPair dd
-fromInterA g (IFst d) = fromInterA g d >>= Ok . Fst
-fromInterA g (ISnd d) = fromInterA g d >>= Ok . Snd
-fromInterA g IBeta = Ok Beta
-fromInterA g (IRho d x tp d1) =
-  fromInterA g d >>= \dd -> fromInterT g tp >>= \dtp -> fromInterA g d1 >>= Ok . Rho dd dtp
-
-fromInterT :: TopCtx -> IType -> Err AType
-fromInterT g (IVt x) = Ok (AVt x)
-fromInterT g (IVSt x) = errLookup x g >>= \case { Left (a , _) -> Ok a ; Right _ -> Bad "Lookup had wrong sort" }
-fromInterT g (IAllk x x1 d) = fromInterK g x1 >>= \dx1 -> fromInterT g d >>= Ok . AAllk dx1
-fromInterT g (IPit x d d1) = fromInterT g d >>= \dd -> fromInterT g d1 >>= Ok . APit dd
-fromInterT g (ILamt x d d1) = fromInterT g d >>= \dd -> fromInterT g d1 >>= Ok . ALamt dd
-fromInterT g (IAppt d x) = fromInterT g d >>= \dd -> fromInterA g x >>= Ok . AAppt dd
-fromInterT g (ILAMk x d d1) = fromInterK g d >>= \dd -> fromInterT g d1 >>= Ok . ALAMk dd
-fromInterT g (IAppk d x) = fromInterT g d >>= \dd -> fromInterT g x >>= Ok . AAppk dd
-fromInterT g (IAllt x d d1) = fromInterT g d >>= \dd -> fromInterT g d1 >>= Ok . AAllt dd
-fromInterT g (IIota x d d1) = fromInterT g d >>= \dd -> fromInterT g d1 >>= Ok . AIota dd
-fromInterT g (IId x y) = fromInterA g x >>= \dx -> fromInterA g y >>= Ok . AId dx
-
-fromInterK :: TopCtx -> IKind -> Err AKind
-fromInterK g IStar = Ok AStar
-fromInterK g (IPik x x1 d) = fromInterT g x1 >>= \dx1 -> fromInterK g d >>= Ok . APik dx1
-fromInterK g (IAlltk x x1 d) = fromInterK g x1 >>= \dx1 -> fromInterK g d >>= Ok . AAlltk dx1
+fromInter :: TopCtx -> ITerm -> Err ATerm
+fromInter g (IV x) = Ok (AV x)
+fromInter g (IVS x) = errLookup x g >>= \case { (a , _) -> Ok a }
+fromInter g (ILam x d) = fromInter g d >>= Ok . ALam
+fromInter g (IApp d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AApp dd
+fromInter g (IAnn d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AAnn dd
+fromInter g (ILAM x d) = fromInter g d >>= Ok . ALAM
+fromInter g (IAppi d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AAppi dd
+fromInter g (IIPair d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AIPair dd
+fromInter g (IFst d) = fromInter g d >>= Ok . AFst
+fromInter g (ISnd d) = fromInter g d >>= Ok . ASnd
+fromInter g IBeta = Ok ABeta
+fromInter g (IRho d x tp d1) =
+  fromInter g d >>= \dd -> fromInter g tp >>= \dtp -> fromInter g d1 >>= Ok . ARho dd dtp
+fromInter g (IPit x d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . APi dd
+fromInter g (IIPi x d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AIPi dd
+fromInter g (IIota x d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AIota dd
+fromInter g (IId x y) = fromInter g x >>= \dx -> fromInter g y >>= Ok . AId dx
+fromInter g IStar = Ok AStar
 
 {- Convert concrete syntax into intermediate syntax -}
-fromConA :: Exp -> Err IADB
-fromConA (SLet d e) = Bad "TO DO: Implement let expressions"
-fromConA (SLamj (SVar (AIdent e) : []) o) = fromConA o >>= Ok . ILamj e
-fromConA (SLamj (SVar (AIdent e) : l) o) = fromConA (SLamj l o) >>= Ok . ILamj e
-fromConA (SLami (SVar (AIdent e) : []) o) = fromConA o >>= Ok . ILAMj e
-fromConA (SLami (SVar (AIdent e) : l) o) = fromConA (SLami l o) >>= Ok . ILAMj e
-fromConA (SLamtj (SVar (AIdent e) : []) o) = fromConA o >>= Ok . ILAMt e
-fromConA (SLamtj (SVar (AIdent e) : l) o) = fromConA (SLamtj l o) >>= Ok . ILAMt e
-fromConA (SIApp a b) = fromConA a >>= \ca -> fromConA b >>= Ok . IAppi ca
-fromConA (STApp a b) = fromConA a >>= \ca -> fromConT b >>= Ok . IApptj ca
-fromConA (SApp a b) = fromConA a >>= \ca -> fromConA b >>= Ok . IAppj ca
-fromConA (SRho (PTele (SVar (AIdent e)) t) a b) =
-  fromConA a >>= \ca -> fromConT t >>= \ct -> fromConA b >>= Ok . IRho ca e ct
-fromConA (SFst a) = fromConA a >>= \ca -> Ok $ IFst ca
-fromConA (SSnd a) = fromConA a >>= \ca -> Ok $ ISnd ca
-fromConA (SPair a b) = fromConA a >>= \ca -> fromConA b >>= Ok . IIPair ca
-fromConA SBeta = Ok IBeta
-fromConA (SVar (AIdent e)) = Ok $ IVSj e
-fromConA _ = Bad "Parsing Error"
-
-fromConT :: Exp -> Err IType
-fromConT (SLamt (PTele (SVar (AIdent e)) t : []) o) = fromConT t >>= \ct -> fromConT o >>= Ok . ILamt e ct
-fromConT (SLamt (PTele (SVar (AIdent e)) t : l) o) = fromConT t >>= \ct -> fromConT (SLamt l o) >>= Ok . ILamt e ct
-fromConT (SLamkt (PTele (SVar (AIdent e)) t : []) o) = fromConK t >>= \ct -> fromConT o >>= Ok . ILAMk e ct
-fromConT (SLamkt (PTele (SVar (AIdent e)) t : l) o) = fromConK t >>= \ct -> fromConT (SLamkt l o) >>= Ok . ILAMk e ct
-fromConT (STApp a b) = fromConT a >>= \ca -> fromConT b >>= Ok . IAppk ca
-fromConT (SApp a b) = fromConT a >>= \ca -> fromConA b >>= Ok . IAppt ca
-fromConT (SFun a b) = fromConT a >>= \ca -> fromConT b >>= Ok . IPit "" ca
-fromConT (SPi (PTele (SVar (AIdent e)) t : []) o) = fromConT t >>= \ct -> fromConT o >>= Ok . IPit e ct
-fromConT (SPi (PTele (SVar (AIdent e)) t : l) o) = fromConT t >>= \ct -> fromConT (SPi l o) >>= Ok . IPit e ct
-fromConT (SIPi (ITele (SVar (AIdent e)) t : []) o) = fromConT t >>= \ct -> fromConT o >>= Ok . IAllt e ct
-fromConT (SIPi (ITele (SVar (AIdent e)) t : l) o) = fromConT t >>= \ct -> fromConT (SIPi l o) >>= Ok . IAllt e ct
-fromConT (SAll (PTele (SVar (AIdent e)) t : []) o) = fromConK t >>= \ct -> fromConT o >>= Ok . IAllk e ct
-fromConT (SAll (PTele (SVar (AIdent e)) t : l) o) = fromConK t >>= \ct -> fromConT (SAll l o) >>= Ok . IAllk e ct
-fromConT (SId a b) = fromConA a >>= \ca -> fromConA b >>= Ok . IId ca
-fromConT (SIota (PTele (SVar (AIdent e)) t) b) = fromConT t >>= \ct -> fromConT b >>= Ok . IIota e ct
-fromConT (SVar (AIdent e)) = Ok $ IVSt e
-fromConT _ = Bad "Parsing Error"
-
-fromConK :: Exp -> Err IKind
-fromConK SU = Ok IStar
-fromConK (SFun a b) = fromConT a >>= \ca -> fromConK b >>= Ok . IPik "" ca
-fromConK (SPi (PTele (SVar (AIdent e)) t : []) o) = fromConT t >>= \ct -> fromConK o >>= Ok . IPik e ct
-fromConK (SPi (PTele (SVar (AIdent e)) t : l) o) = fromConT t >>= \ct -> fromConK (SPi l o) >>= Ok . IPik e ct
-fromConK (SAll (PTele (SVar (AIdent e)) t : []) o) = fromConK t >>= \ct -> fromConK o >>= Ok . IAlltk e ct
-fromConK (SAll (PTele (SVar (AIdent e)) t : l) o) = fromConK t >>= \ct -> fromConK (SAll l o) >>= Ok . IAlltk e ct
-fromConK _ = Bad "Parsing Error"
+fromCon :: Exp -> Err ITerm
+fromCon (SLet d e) = Bad "TO DO: Implement let expressions"
+fromCon (SLam (AOTele (AIdent e) : []) o) = fromCon o >>= Ok . ILam e
+fromCon (SLam (AOTele (AIdent e) : l) o) = fromCon (SLam l o) >>= Ok . ILam e
+fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : []) o) =
+  fromCon t >>= \ct -> fromCon o >>= Ok . ILam e . IAnn ct
+fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : l) o) =
+  fromCon t >>= \ct -> fromCon (SLam l o) >>= Ok . ILam e . IAnn ct
+fromCon (SLami (AIdent e : []) o) = fromCon o >>= Ok . ILAM e
+fromCon (SLami (AIdent e : l) o) = fromCon (SLami l o) >>= Ok . ILAM e
+fromCon (SAppi a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IAppi ca
+fromCon (SApp a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IApp ca
+fromCon (SRho (PTele (SVar (AIdent e)) t) a b) =
+  fromCon a >>= \ca -> fromCon t >>= \ct -> fromCon b >>= Ok . IRho ca e ct
+fromCon (SFst a) = fromCon a >>= \ca -> Ok $ IFst ca
+fromCon (SSnd a) = fromCon a >>= \ca -> Ok $ ISnd ca
+fromCon (SPair a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IIPair ca
+fromCon SBeta = Ok IBeta
+fromCon (SVar (AIdent e)) = Ok $ IVS e
+fromCon (SFun a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IPit "" ca
+fromCon (SPi (PTele (SVar (AIdent e)) t : []) o) = fromCon t >>= \ct -> fromCon o >>= Ok . IPit e ct
+fromCon (SPi (PTele (SVar (AIdent e)) t : l) o) = fromCon t >>= \ct -> fromCon (SPi l o) >>= Ok . IPit e ct
+fromCon (SIPi (ITele (SVar (AIdent e)) t : []) o) = fromCon t >>= \ct -> fromCon o >>= Ok . IIPi e ct
+fromCon (SIPi (ITele (SVar (AIdent e)) t : l) o) = fromCon t >>= \ct -> fromCon (SIPi l o) >>= Ok . IIPi e ct
+fromCon (SId a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IId ca
+fromCon (SIota (PTele (SVar (AIdent e)) t) b) = fromCon t >>= \ct -> fromCon b >>= Ok . IIota e ct
+fromCon SU = Ok IStar
+fromCon _ = Bad "Parsing Error"
 
 {- Convert Concrete Syntax into Abstract Syntax -}
-convertA :: TopCtx -> Exp -> Err ADB
-convertA t e = fromConA e >>= fromInterA t . indexA "" 0
-
-convertT :: TopCtx -> Exp -> Err AType
-convertT t e = fromConT e >>= fromInterT t . indexT "" 0
-
-convertK :: TopCtx -> Exp -> Err AKind
-convertK t e = fromConK e >>= fromInterK t . indexK "" 0
+convert :: TopCtx -> Exp -> Err ATerm
+convert t e = fromCon e >>= fromInter t . index "" 0

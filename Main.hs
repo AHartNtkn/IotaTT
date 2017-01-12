@@ -37,17 +37,10 @@ whereToExp (NoWhere e) = e
 -- Add a declaration to a context
 addDecl :: TopCtx -> Decl -> Err TopCtx
 addDecl ctx (DeclDef (AIdent defId) retTy eWhere) =
-  if (\case {Bad _ -> True ; Ok _ -> False}) (convertA ctx (whereToExp eWhere))
-  then -- Case when a type is being added.
-    convertT ctx (whereToExp eWhere) >>= \ty ->
-    convertK ctx retTy >>= \ki ->
-    checkType Empty ty ki >>
-    Ok ((defId , Left (ty , ki)) : ctx)
-  else -- Case when a term is being added.
-    convertA ctx (whereToExp eWhere) >>= \term ->
-    convertT ctx retTy >>= \ty ->
-    checkTerm Empty term ty >>
-    Ok ((defId , Right (term , ty)) : ctx)
+    convert ctx (whereToExp eWhere) >>= \ty ->
+    convert ctx retTy >>= \ki ->
+    check Empty ty ki >>
+    Ok ((defId , (ty , ki)) : ctx)
 
 -- Add a list of declarations to a context
 addDecls :: TopCtx -> [Decl] -> IO TopCtx
@@ -77,23 +70,22 @@ moduleToCtx ctx (Module a (Import (AIdent s):im) decl) = do
 -- Print the content of a context, for debuging
 prCtx :: TopCtx -> String
 prCtx [] = ""
-prCtx ((s , Left v):vs) = s ++ " : " ++ show v ++ "\n" ++ prCtx vs
-prCtx ((s , Right v):vs) = s ++ " : " ++ show v ++ "\n" ++ prCtx vs
+prCtx ((s , v):vs) = s ++ " : " ++ show v ++ "\n" ++ prCtx vs
 
 -- Evaluate expression from user input
 -- NOTE: pExp :: [Token] -> Err Exp
-evaluateInput :: TopCtx -> String -> Err DB
+evaluateInput :: TopCtx -> String -> Err Term
 evaluateInput ctx input =
   -- process user input into an expression
   (pExp . resolveLayout True . myLexer) input >>=
-  convertA ctx >>= Ok . normalize . erase
+  convert ctx >>= Ok . normalize . erase
 
 -- When needed, print contents of an Error
-errIO :: Err DB -> IO ()
+errIO :: Err Term -> IO ()
 errIO (Bad s) = putStrLn s
 errIO (Ok a)  = putStrLn $ show a
 
-errIOT :: Err AType -> IO ()
+errIOT :: Err ATerm -> IO ()
 errIOT (Bad s) = putStrLn s
 errIOT (Ok a)  = putStrLn $ show a
 
@@ -114,8 +106,8 @@ mainLoop s ctx =
     ':':'t':' ':l ->
       errIOT (
         (pExp . resolveLayout True . myLexer) l >>=
-        convertA ctx >>=
-        inferTerm Empty) >>
+        convert ctx >>=
+        infer Empty) >>
       mainLoop s ctx
     _      -> errIO (evaluateInput ctx input) >> mainLoop s ctx -- Loop back with same context
 

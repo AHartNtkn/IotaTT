@@ -1,33 +1,33 @@
 module Sigma where
 
-cSigma : A (T : *) (S : T -> *) . *
-       = V (T : *) (S : T -> *) . A (X : *) . ((x : T) -> S x -> X) -> X
+cSigma : (T : *) (S : T -> *) -> *
+       = \ (T : *) (S : T -> *) . (X : *) -> ((x : T) -> S x -> X) -> X
 
-cPair : A (T : *) (S : T -> *) . (t : T) -> S t -> cSigma +T +S
-      = V T , S . \ t , st . V X . \ f . f t st
+cPair : (T : *) (S : T -> *) (t : T) -> S t -> cSigma T S
+      = \ T S t st X f . f t st
 
-Sigma : A (T : *) (S : T -> *) . *
-      = V (T : *) (S : T -> *) .
-        i (s : cSigma +T +S) .
-          A (C : cSigma +T +S -> *) .
-            ((t : T) -> (st : S t) -> C (cPair +T +S t st)) ->
+Sigma : (T : *) (S : T -> *) -> *
+      = \ (T : *) (S : T -> *) .
+        i (s : cSigma T S) .
+          (C : cSigma T S -> *) ->
+            ((t : T) (st : S t) -> C (cPair T S t st)) ->
             C s
 
-Pair : A (T : *) (S : T -> *) . (t : T) -> S t -> Sigma +T +S
-     = V T , S . \ t , st . [ cPair +T +S t st | V X . \ f . f t st ]
+Pair : (T : *) (S : T -> *) (t : T) -> S t -> Sigma T S
+     = \ T S t st . [ cPair T S t st | \ X f . f t st ]
 
-SigElim : A (T : *) (S : T -> *) (C : Sigma +T +S -> *) .
-            ((t : T) -> (st : S t) -> C (Pair +T +S t st)) ->
-            (s : Sigma +T +S) -> C s
-        = V T , S , C . \ p , s .
+SigElim : (T : *) (S : T -> *) (C : Sigma T S -> *) ->
+          ((t : T) -> (st : S t) -> C (Pair T S t st)) ->
+          (s : Sigma T S) -> C s
+        = \ T S C p s .
             s.2
-              + (\(u : cSigma +T +S) . A (X : *) . ((x : Sigma +T +S) -> x ~ u -> C x -> X) -> X)
-              (\ t , st . V X . \ ih . ih (Pair +T +S t st) B (p t st))
-              + (C s)
-              (\ y , e , cy . r (x : C x) e . cy)
+              (\(u : cSigma T S) . (X : *) -> ((x : Sigma T S) -> x ~ u -> C x -> X) -> X)
+              (\ t st X ih . ih (Pair T S t st) B (p t st))
+              (C s)
+              (\ y e cy . r (x : C x) e . cy)
 
-fst : A (T : *) (S : T -> *) . Sigma +T +S -> T
-    = V T , S . SigElim +T +S +(\(s : Sigma +T +S) . T) (\ t , st . t)
+fst : (T : *) (S : T -> *) -> Sigma T S -> T
+    = \ T S . SigElim T S (\ s . T) (\ t st . t)
 
-snd : A (T : *) (S : T -> *) . (s : Sigma +T +S) -> S (fst +T +S s)
-    = V T , S . SigElim +T +S +(\(s : Sigma +T +S) . S (fst +T +S s)) (\ t , st . st)
+snd : (T : *) (S : T -> *) -> (s : Sigma T S) -> S (fst T S s)
+    = \ T S . SigElim T S (\ s . S (fst T S s)) (\ t st . st)

@@ -19,20 +19,16 @@ Where.    ExpWhere ::= Exp "where" "{" [Decl] "}" ;
 NoWhere.  ExpWhere ::= Exp ;
 
 SLet.          Exp  ::= "let" "{" [Decl] "}" "in" Exp ;
-SLamj.         Exp1 ::= "\\" [Exp] "." Exp ;
-SLami.         Exp1 ::= "/" [Exp] "." Exp ;
-SLamtj.        Exp1 ::= "V" [Exp] "." Exp ;
-SLamt.         Exp1 ::= "\\" [PTele] "." Exp ;
+SLam.          Exp1 ::= "\\" [OTele] "." Exp ;
+SLami.         Exp1 ::= "/" [AIdent] "." Exp ;
 SFun.          Exp1 ::= Exp2 "->" Exp1 ;
-SAll.          Exp1 ::= "A" [PTele] "." Exp1 ;
 SPi.           Exp1 ::= [PTele] "->" Exp1 ;
 SIPi.          Exp1 ::= [ITele] "->" Exp1 ;
 SIota.         Exp1 ::= "i" PTele "." Exp1 ;
-SIApp.         Exp2 ::= Exp2 "-" Exp3 ;
-STApp.         Exp2 ::= Exp2 "+" Exp3 ;
-SApp.          Exp2 ::= Exp2 Exp3 ;
 SId.           Exp2 ::= Exp2 "~" Exp3 ;
 SRho.          Exp2 ::= "r" PTele Exp2 "." Exp3 ;
+SAppi.         Exp3 ::= Exp3 "-" Exp4 ;
+SApp.          Exp3 ::= Exp3 Exp4 ;
 SFst.          Exp4 ::= Exp4 ".1" ;
 SSnd.          Exp4 ::= Exp4 ".2" ;
 SPair.         Exp5 ::= "[" Exp "|" Exp "]" ;
@@ -41,11 +37,10 @@ SBeta.         Exp5 ::= "B" ;
 SU.            Exp5 ::= "*" ;
 SHole.         Exp5 ::= HoleIdent ;
 coercions Exp 5 ;
-separator nonempty Exp "," ;
 
--- Telescopes
-Tele.     Tele ::= "(" AIdent [AIdent] ":" Exp ")" ;
-terminator Tele "" ;
+POTele.   OTele ::= PTele ;
+AOTele.   OTele ::= AIdent ;
+terminator nonempty OTele "" ;
 
 PTele.    PTele ::= "(" Exp ":" Exp ")" ;
 ITele.    ITele ::= "{" Exp ":" Exp "}" ;

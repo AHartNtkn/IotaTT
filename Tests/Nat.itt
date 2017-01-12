@@ -1,23 +1,43 @@
 module Nat where
 
-cNat : * = A (a : *) . (a -> a) -> a -> a
+cNat : * = (a : *) -> (a -> a) -> a -> a
 
-cZ : cNat = V a . \ s , z . z
+cZ : cNat = \ a s z . z
 
-cS : cNat -> cNat = \ n . V a . \ s , z . s (n + a s z)
+cS : cNat -> cNat = \ n a s z . s (n a s z)
 
-Nat : * = i (x : cNat) . A (Q : cNat -> *) . ({x : cNat} -> Q x -> Q (cS x)) -> Q cZ -> Q x
+Nat : * = i (x : cNat) . (Q : cNat -> *) -> ({x : cNat} -> Q x -> Q (cS x)) -> Q cZ -> Q x
 
 Z : Nat = [ cZ | cZ ]
 
-S : Nat -> Nat = \ n . [ cS n.1 | (V P . \ s , z . s - n.1 (n.2 + P s z)) ]
+S : Nat -> Nat = \ n . [ cS n.1 | \ P s z . s -n.1 (n.2 P s z) ]
 
-NatInd : A (Q : Nat -> *) . ({x : Nat} -> Q x -> Q (S x)) -> Q Z -> (x : Nat) -> Q x
-       = V Q . \ s , z , x .
-             x.2
-             + (\ (x : cNat) . A (X : *) . ((x' : Nat) -> (x ~ x') -> Q x' -> X) -> X)
-             (/ x' . \ ih . V X . \ c .
-                     ih + X (\ x'' , e , u . c (S x'') (r (o : (S x') ~ (S o)) e . B) (s - x'' u)))
-             (V X . \ c . c Z B z)
-             + (Q x)
-             (\x' , e , u . r (x : Q x) (r (o : o ~ x) e . B) . u)
+NatInd : (Q : Nat -> *) -> ({x : Nat} -> Q x -> Q (S x)) -> Q Z -> (x : Nat) -> Q x
+       = \ Q s z x .
+           x.2
+             (\ (x : cNat) . (X : *) -> ((x' : Nat) -> (x ~ x') -> Q x' -> X) -> X)
+             (/ x' . \ ih X c .
+                     ih X (\ x'' e u . c (S x'') (r (o : S x' ~ S o) e . B) (s -x'' u)))
+             (\ X c . c Z B z)
+             (Q x)
+             (\x' e u . r (x : Q x) (r (o : o ~ x) e . B) . u)
+
+one   : Nat = S Z
+two   : Nat = S one
+three : Nat = S two
+four  : Nat = S three
+five  : Nat = S four
+six   : Nat = S five
+seven : Nat = S six
+eight : Nat = S seven
+nine  : Nat = S eight
+ten   : Nat = S nine
+
+{-
+plus : Nat -> Nat -> Nat
+     = NatInd (\ n . Nat -> Nat)
+              (/ n . \ re m . S (re m))
+              (\ m . m)
+
+NatInd (\ n . Nat -> Nat) (/ n . \ re m . S (re m)) (\ m . m)
+-}
