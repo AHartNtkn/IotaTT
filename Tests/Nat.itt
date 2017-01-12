@@ -39,3 +39,10 @@ plus : Nat -> Nat -> Nat
               (\ m . m)
 
 plusTest : plus three five ~ eight = B
+
+times : Nat -> Nat -> Nat
+   = NatInd (\ n . Nat -> Nat)
+            (/ n . \ re m . plus m (re m))
+            (\ m . Z)
+
+timesTest : times eight two ~ times four four = B
