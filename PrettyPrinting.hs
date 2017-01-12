@@ -55,6 +55,7 @@ printD i (Pi a b) =
   then "(" ++ char i ++ " : " ++ printD i a ++ ") -> " ++ printD (1 + i) b
   else parenD i a ++ " -> " ++ printD (1 + i) b
 printD i (IPi a b) = "{" ++ char i ++ " : " ++ printD i a ++ "} -> " ++ printD (1 + i) b
+printD i (Id a b) = printD i a ++ " ~ " ++ printD i b
 printD i Star = "*"
 
 instance Show Term where 

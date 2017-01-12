@@ -39,7 +39,7 @@ addDecl :: TopCtx -> Decl -> Err TopCtx
 addDecl ctx (DeclDef (AIdent defId) retTy eWhere) =
     convert ctx (whereToExp eWhere) >>= \ty ->
     convert ctx retTy >>= \ki ->
-    check Empty ty ki >>
+    check ctx Empty ty ki >>
     Ok ((defId , (ty , ki)) : ctx)
 
 -- Add a list of declarations to a context
@@ -78,7 +78,7 @@ evaluateInput :: TopCtx -> String -> Err Term
 evaluateInput ctx input =
   -- process user input into an expression
   (pExp . resolveLayout True . myLexer) input >>=
-  convert ctx >>= Ok . normalize . erase
+  convert ctx >>= erase ctx >>= normalize []
 
 -- When needed, print contents of an Error
 errIO :: Err Term -> IO ()
@@ -107,7 +107,7 @@ mainLoop s ctx =
       errIOT (
         (pExp . resolveLayout True . myLexer) l >>=
         convert ctx >>=
-        infer Empty) >>
+        infer ctx Empty) >>
       mainLoop s ctx
     _      -> errIO (evaluateInput ctx input) >> mainLoop s ctx -- Loop back with same context
 

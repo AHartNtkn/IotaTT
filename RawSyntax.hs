@@ -15,12 +15,6 @@ import Data.String
 import Data.HashMap.Strict (HashMap, (!))
 import qualified Data.HashMap.Strict as HM
 
-{- The context used by the interpreter -}
-type TopCtx = [(String, (ATerm, ATerm))]
-
-errLookup :: (Show a, Eq a) => a -> [(a, b)] -> Err b
-errLookup a l = (\case { Nothing -> Bad ("Failed to locate "++ show a++".") ; Just k -> Ok k}) (lookup a l)
-
 {- Intermediate raw instax -}
 data ITerm
    = IVS String
@@ -66,8 +60,8 @@ index s n IStar = IStar
 
 -- Convert intermediate syntax into abstract syntax
 fromInter :: TopCtx -> ITerm -> Err ATerm
-fromInter g (IV x) = Ok (AV x)
-fromInter g (IVS x) = errLookup x g >>= \case { (a , _) -> Ok a }
+fromInter g (IV x) = Ok $ AV x
+fromInter g (IVS x) = Ok $ AVS x
 fromInter g (ILam x d) = fromInter g d >>= Ok . ALam
 fromInter g (IApp d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AApp dd
 fromInter g (IAnn d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AAnn dd

@@ -8,7 +8,7 @@ cS : cNat -> cNat = \ n a s z . s (n a s z)
 
 Nat : * = i (x : cNat) . (Q : cNat -> *) -> ({x : cNat} -> Q x -> Q (cS x)) -> Q cZ -> Q x
 
-Z : Nat = [ cZ | cZ ]
+Z : Nat = [ cZ | \ a s z . z ]
 
 S : Nat -> Nat = \ n . [ cS n.1 | \ P s z . s -n.1 (n.2 P s z) ]
 
@@ -33,11 +33,9 @@ eight : Nat = S seven
 nine  : Nat = S eight
 ten   : Nat = S nine
 
-{-
 plus : Nat -> Nat -> Nat
      = NatInd (\ n . Nat -> Nat)
               (/ n . \ re m . S (re m))
               (\ m . m)
 
-NatInd (\ n . Nat -> Nat) (/ n . \ re m . S (re m)) (\ m . m)
--}
+plusTest : plus three five ~ eight = B

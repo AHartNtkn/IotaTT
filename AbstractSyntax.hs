@@ -1,6 +1,11 @@
-{-# language MultiParamTypeClasses #-}
+{-# language MultiParamTypeClasses , LambdaCase #-}
 
 module AbstractSyntax where
+
+import ErrM
+
+errLookup :: (Show a, Eq a) => a -> [(a, b)] -> Err b
+errLookup a l = (\case { Nothing -> Bad ("Failed to locate "++ show a++".") ; Just k -> Ok k}) (lookup a l)
 
 {- Unannotated deBrujin Lambda Terms -}
 class DeBruijin a where
@@ -19,9 +24,14 @@ class Norm a where
   ssEval :: a -> a
   -- Superdevelopment
   sdev :: a -> a
+  -- Superdevelopment with context substutution
+  ssdev :: [(String , (a , a))] -> a -> Err a
 
-normalize :: (Eq a, Norm a) => a -> a
-normalize d = let r = sdev d in if d == r then r else normalize r  
+normalize :: (Eq a, Norm a) => [(String , (a , a))] -> a -> Err a
+normalize ctx d = ssdev ctx d >>= \r ->
+  if d == r
+  then Ok r
+  else normalize ctx r
 
 {- Unannotated Terms -}
 data Term
@@ -85,9 +95,12 @@ instance Norm Term where
   sdev (Id x y)    = Id (sdev x) (sdev y)
   sdev Star = Star
 
+  ssdev _ t = Ok $ sdev t
+
 {- Annotated Types -}
 data ATerm
          = AV Int
+         | AVS String
          | ALam ATerm
          | AAnn ATerm ATerm
          | AApp ATerm ATerm
@@ -105,8 +118,12 @@ data ATerm
          | AStar
          deriving (Eq , Show)
 
+{- The context used by the interpreter -}
+type TopCtx = [(String, (ATerm, ATerm))]
+
 instance DeBruijin ATerm where
   freeIn (AV x)        n = x == n 
+  freeIn (AVS x)       n = False
   freeIn (ALam d)      n = freeIn d (1 + n)
   freeIn (AAnn d d1)   n = freeIn d n || freeIn d1 n
   freeIn (AApp d d1)   n = freeIn d n || freeIn d1 n
@@ -124,6 +141,7 @@ instance DeBruijin ATerm where
   freeIn AStar n = False
 
   incFree (AV x)       n i = if x >= n then AV (i + x) else AV x
+  incFree (AVS s)      n i = AVS s
   incFree (ALam d)     n i = ALam (incFree d (1 + n) i)
   incFree (AAnn d b)   n i = AAnn (incFree d n i) (incFree b n i)
   incFree (AApp d b)   n i = AApp (incFree d n i) (incFree b n i)
@@ -147,6 +165,7 @@ instance Substitute ATerm ATerm where
           then s
           else AV (x - 1))
     else AV x
+  sub _ _ (AVS s) = AVS s
   sub s n (ALam d)      = ALam (sub (incFree s 0 1) (1 + n) d)
   sub s n (AAnn d b)    = AAnn (sub s n d) (sub s n b)
   sub s n (AApp d b)    = AApp (sub s n d) (sub s n b)
@@ -177,6 +196,7 @@ instance Norm ATerm where
   ssEval tp = tp
 
   sdev (AV x)       = AV x
+  sdev (AVS x)      = AVS x
   sdev (ALam d)     = ssEval (ALam (sdev d))
   sdev (AAnn d b)   = ssEval (AAnn (sdev d) (sdev b))
   sdev (AApp d b)   = ssEval (AApp (sdev d) (sdev b))
@@ -193,21 +213,40 @@ instance Norm ATerm where
   sdev (AId x y)    = AId (sdev x) (sdev y)
   sdev AStar = AStar
 
+  ssdev c (AV x)       = Ok $ AV x
+  ssdev c (AVS x)      = errLookup x c >>= ssdev c . fst
+  ssdev c (ALam d)     = ssdev c d >>= Ok . ssEval . ALam
+  ssdev c (AAnn d b)   = ssdev c d >>= \ cd -> ssdev c b >>= Ok . ssEval . AAnn cd
+  ssdev c (AApp d b)   = ssdev c d >>= \ cd -> ssdev c b >>= Ok . ssEval . AApp cd
+  ssdev c (ALAM d)     = ssdev c d >>= Ok . ssEval . ALAM
+  ssdev c (AAppi d b)  = ssdev c d >>= \ cd -> ssdev c b >>= Ok . ssEval . AAppi cd
+  ssdev c (AIPair d b) = ssdev c d >>= \ cd -> ssdev c b >>= Ok . AIPair cd 
+  ssdev c (AFst d)     = ssdev c d >>= Ok . ssEval . AFst
+  ssdev c (ASnd d)     = ssdev c d >>= Ok . ssEval . ASnd
+  ssdev c ABeta        = Ok ABeta
+  ssdev c (ARho d x b) = ssdev c d >>= \ cd -> ssdev c x >>= \ cx -> ssdev c b >>= Ok . ssEval . ARho cd cx
+  ssdev c (APi t tp)   = ssdev c t >>= \ ct -> ssdev c tp >>= Ok . APi ct
+  ssdev c (AIPi t tp)  = ssdev c t >>= \ ct -> ssdev c tp >>= Ok . AIPi ct
+  ssdev c (AIota t t') = ssdev c t >>= \ ct -> ssdev c t' >>= Ok . AIota ct
+  ssdev c (AId x y)    = ssdev c x >>= \ cx -> ssdev c y >>= Ok . AId cx
+  ssdev c AStar = Ok AStar
+
 {- Annotation Erasure -}
-erase :: ATerm -> Term
-erase (AV x)        = V x
-erase (ALam t)      = Lam (erase t)
-erase (AAnn t t')   = erase t'
-erase (AApp t t')   = App (erase t) (erase t')
-erase (ALAM t)      = sub (Lam (V 0)) 0 (erase t) -- Free variables need to be decremented. 
-erase (AAppi t t')  = erase t
-erase (AIPair t t') = erase t
-erase (AFst t)      = erase t
-erase (ASnd t)      = erase t
-erase ABeta         = Lam (V 0)
-erase (ARho _ _ t') = erase t'
-erase (APi t t1)    = Pi (erase t) (erase t1)
-erase (AIPi t t1)   = IPi (erase t) (erase t1)
-erase (AIota t t1)  = Iota (erase t) (erase t1)
-erase (AId x x1)    = Id (erase x) (erase x1)
-erase AStar = Star
+erase :: TopCtx -> ATerm -> Err Term
+erase c (AV x)        = Ok $ V x
+erase c (AVS x)       = errLookup x c >>= erase c . fst
+erase c (ALam t)      = erase c t >>= Ok . Lam
+erase c (AAnn t t')   = erase c t'
+erase c (AApp t t')   = erase c t >>= \et -> erase c t' >>= Ok . App et 
+erase c (ALAM t)      = erase c t >>= Ok . sub (Lam (V 0)) 0 -- Free variables need to be decremented. 
+erase c (AAppi t t')  = erase c t
+erase c (AIPair t t') = erase c t
+erase c (AFst t)      = erase c t
+erase c (ASnd t)      = erase c t
+erase c ABeta         = Ok $ Lam (V 0)
+erase c (ARho _ _ t') = erase c t'
+erase c (APi t t1)    = erase c t >>= \et -> erase c t1 >>= Ok . Pi et
+erase c (AIPi t t1)   = erase c t >>= \et -> erase c t1 >>= Ok . IPi et
+erase c (AIota t t1)  = erase c t >>= \et -> erase c t1 >>= Ok . Iota et
+erase c (AId x x1)    = erase c x >>= \et -> erase c x1 >>= Ok . Id et
+erase c AStar = Ok $ Star
