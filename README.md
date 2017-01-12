@@ -1,9 +1,13 @@
 Iota Type Theory
 ===================
 
-This is a simple prototype implementation of iota-lambda-P2, a
-recently described pure-type-system capable of expressing
-dependent elimination principals.
+This is a simple prototype implementation of a pure type system
+with dependent intersections, a heterogeneous quality, and 
+implicit products. This allows one to have a pure-type-system
+capable of expressing dependent elimination principals.
+
+This branch has types and kinds unified, using `* : *` instead
+of a universe hierarchy, for now.
 
 Right now, the language only supports adding declarations
 and type checking them. All files must begin with a module
@@ -16,28 +20,10 @@ module Nat where
 After that, a declaration of the form `<NAME> : <TYPE> = <TERM>`
 can be declared;
 ```
-cNat : * = A (a : *) . (a -> a) -> a -> a
+cNat : * = (a : *) (a -> a) -> a -> a
 
-cZ : cNat = V a . \ s , z . z
+cZ : cNat = \ a , s , z . z
 ```
-
-Note that quantification over a kind is denoted;
-```
-A (<NAME> : <KIND>) . <TYPE>
-```
-
-Then a lambda binder which binds a type variable is denoted;
-```
-V <NAME> . <TERM>
-```
-
-To issue a type as an argument, use ``<TERM> + <TYPE>``.
-
-Note that IotaTT supports quantification over kinds when
-defining types (which is generic type-polymorphism). This
-is necessary for describing, for example, identity types,
-but is not present in the system described by the Stump
-paper.
 
 Implicit products are denoted with curly braces;
 ```
@@ -51,9 +37,8 @@ And implicit lambda binders are denoted with a forward slash
 
 To issue an implicit argument, use `<TERM> - <TERM>`
 
-Lambda terms are denoted with a back-slash, but note that a
-type-level lambda term takes a type when binding a variable,
-while a term-level lambda does not.
+Lambda terms are denoted with a back-slash. Type annotations
+are optional, but are sometimes neccessary for type inference.
 
 Dependent intersections are denoted
 ```
@@ -104,6 +89,9 @@ References
 
  * [From Realizability to Induction via Dependent Intersection](http://homepage.divms.uiowa.edu/~astump/papers/from-realizability-to-induction-aaron-stump.pdf), Aaron Stump. This
    paper describes the type theory that this language is based on, as well as a different implementation.
+
+ * [Simply Easy!](http://strictlypositive.org/Easy.pdf), Andres Loh, Conor McBride, Wouter Swierstra.
+   I used the lambda-Pi system described on page 6 as a reference when unifying types and kinds.
 
 Authors
 -------
