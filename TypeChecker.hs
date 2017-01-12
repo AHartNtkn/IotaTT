@@ -77,7 +77,7 @@ check c g (AVS s) tp =
     if normalize c (snd ts) == normalize c tp
     then Ok ()
     else Bad "Type didn't match durring name lookup."
-check c g (ALam t) k = case normalize c k of
+check c g (ALam t) k = case ssdev c k of
   Ok (APi tp1 tp2) -> check c (Snoc g tp1) (sdev t) tp2 >> Ok ()
   _ -> Bad "Lambdas can only be Pi types"
 check c (Snoc g tp1) (AAnn t1 t2) tp2 =
@@ -92,7 +92,7 @@ check c g (AApp t t1) tp = infer c g (sdev (AApp t t1)) >>= \k ->
       if normalize [] etp == normalize [] ek
       then check c g tp AStar >> Ok ()
       else Bad "Failed to unify at application"
-check c g (ALAM t) k = case normalize c k of
+check c g (ALAM t) k = case ssdev c k of
   Ok (AIPi tp1 tp2) -> check c (Snoc g tp1) (sdev t) tp2 >> Ok ()
   _ -> Bad "Implicit lambdas must be implicit products."
 check c g (AAppi (ALAM t) s) tp = check c g (sub s 0 t) tp >> Ok ()
@@ -103,7 +103,7 @@ check c g (AAppi t t1) tp = infer c g (sdev (AAppi t t1)) >>= \ k ->
       if normalize [] etp == normalize [] ek
       then check c g tp AStar >> Ok ()
       else Bad "Failed to unify at implicit application"
-check c g (AIPair t1 t2) k = case normalize c k of
+check c g (AIPair t1 t2) k = case ssdev c k of
   Ok (AIota tp1 tp2) ->
     do
       et1 <- erase c t1
@@ -126,7 +126,7 @@ check c g (ASnd t) tp = infer c g (ASnd (sdev t)) >>= \k ->
       if normalize [] etp == normalize [] ek
       then check c g tp AStar >> Ok ()
       else Bad "Failed to unify at iota elimination (#2)"
-check c g ABeta k = case normalize c k of
+check c g ABeta k = case ssdev c k of
   Ok (AId t1 t2) ->
     do
       et1 <- erase c t1
