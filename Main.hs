@@ -24,6 +24,9 @@ import RawSyntax
 
 extention = ".itt"
 
+endQ :: String -> Bool
+endQ s = extention == (map (reverse s!!) $ reverse [0..length extention-1])
+
 -- =*=*=*=*=*=*=*=* Declarations *=*=*=*=*=*=*=*=*=
 
 -- Proccess out where clause
@@ -66,7 +69,7 @@ fileToCtx ctx f = do
 moduleToCtx :: TopCtx -> Module -> IO TopCtx
 moduleToCtx ctx (Module _ [] decl) = addDecls ctx decl
 moduleToCtx ctx (Module a (Import (AIdent s):im) decl) = do
-  sctx <- fileToCtx ctx (s) -- ++extention
+  sctx <- if endQ s then fileToCtx ctx s else fileToCtx ctx (s++extention)
   moduleToCtx (ctx ++ sctx) (Module a im decl)
 
 -- =*=*=*=*=*=*=*=* REPL / Main loop *=*=*=*=*=*=*=*=*=
