@@ -22,7 +22,7 @@ can be declared;
 ```
 cNat : * = (a : *) (a -> a) -> a -> a
 
-cZ : cNat = \ a , s , z . z
+cZ : cNat = \ a s z . z
 ```
 
 Implicit products are denoted with curly braces;
