@@ -2,7 +2,7 @@ Iota Type Theory
 ===================
 
 This is a simple prototype implementation of a pure type system
-with dependent intersections, a heterogeneous quality, and 
+with dependent intersections, a heterogeneous equality, and 
 implicit products. This allows one to have a pure-type-system
 capable of expressing dependent elimination principals.
 
@@ -38,7 +38,7 @@ And implicit lambda binders are denoted with a forward slash
 To issue an implicit argument, use `<TERM> - <TERM>`
 
 Lambda terms are denoted with a back-slash. Type annotations
-are optional, but are sometimes neccessary for type inference.
+are optional, but are sometimes necessary for type inference.
 
 Dependent intersections are denoted
 ```
