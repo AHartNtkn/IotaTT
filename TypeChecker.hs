@@ -127,7 +127,7 @@ checkTerm g (AVj n) tp = case (g , n) of
   (Snot g x , 0) -> case normalize (eraseAType tp) == normalize (eraseAType (incFree x 0 1)) of
     True -> checkType (Snot g (sdev x)) (sdev tp) AStar >> checkType g (sdev x) AStar >> Ok ()
     False -> Bad "Term does not have correct type."
-  (Snok g k , 0) -> checkTerm g (AVj (n - 1)) (sub (AVt 0) 0 tp) >> Ok ()
+  (Snok g k , 0) -> Bad "Type cannot have a kind"
   (Snot g k , n) -> checkTerm g (AVj (n - 1)) (sub (AVj 0) 0 tp) >> Ok ()
   (Snok g k , n) -> checkTerm g (AVj (n - 1)) (sub (AVj 0) 0 tp) >> Ok ()
 checkTerm g (ALamj t) k = case sdev k of

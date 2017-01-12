@@ -213,7 +213,7 @@ instance DeBruijin ADB where
   freeIn (Fst d)      n = freeIn d n
   freeIn (Snd d)      n = freeIn d n
   freeIn Beta         n = False
-  freeIn (Rho d tp b) n = freeIn d n && freeIn tp (1 + n) && freeIn b n
+  freeIn (Rho d tp b) n = freeIn d n || freeIn tp (1 + n) || freeIn b n
 
   incFree (AVj x)      n i = if x >= n then AVj (i + x) else AVj x
   incFree (ALamj d)    n i = ALamj (incFree d (1 + n) i)
