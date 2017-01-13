@@ -1,0 +1,17 @@
+module Unit where
+
+cUnit : * = (A : *) -> A -> A
+
+ctt : cUnit = \ A a . a
+
+Unit : * = i (u : cUnit) . (P : cUnit -> *) -> P ctt -> P u
+
+tt : Unit = [ ctt | \ P a . a ]
+
+UnitInd : (P : Unit -> *) -> P tt -> (u : Unit) -> P u
+        = \ P ptt u .
+            u.2
+              (\(x : cUnit) . (X : *) -> ((x' : Unit) -> (x ~ x') -> P x' -> X) -> X)
+              (\ X c . c tt B ptt)
+              (P u)
+              (\x' eq u2 . r (x : P x) (r (o : o ~ u) eq . B) . u2)
