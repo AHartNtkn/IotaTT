@@ -62,50 +62,48 @@ index s n IStar = IStar
 fromInter :: TopCtx -> ITerm -> Err ATerm
 fromInter g (IV x) = Ok $ AV x
 fromInter g (IVS x) = Ok $ AVS x
-fromInter g (ILam x d) = fromInter g d >>= Ok . ALam
-fromInter g (IApp d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AApp dd
-fromInter g (IAnn d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AAnn dd
-fromInter g (ILAM x d) = fromInter g d >>= Ok . ALAM
-fromInter g (IAppi d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AAppi dd
-fromInter g (IIPair d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AIPair dd
-fromInter g (IFst d) = fromInter g d >>= Ok . AFst
-fromInter g (ISnd d) = fromInter g d >>= Ok . ASnd
+fromInter g (ILam x d) = ALam <$> fromInter g d
+fromInter g (IApp d d1) = AApp <$> fromInter g d <*> fromInter g d1
+fromInter g (IAnn d d1) = AAnn <$> fromInter g d <*> fromInter g d1
+fromInter g (ILAM x d) = ALAM <$> fromInter g d
+fromInter g (IAppi d d1) = AAppi <$> fromInter g d <*> fromInter g d1
+fromInter g (IIPair d d1) = AIPair <$> fromInter g d <*> fromInter g d1
+fromInter g (IFst d) = AFst <$> fromInter g d
+fromInter g (ISnd d) = ASnd <$> fromInter g d
 fromInter g IBeta = Ok ABeta
-fromInter g (IRho d x tp d1) =
-  fromInter g d >>= \dd -> fromInter g tp >>= \dtp -> fromInter g d1 >>= Ok . ARho dd dtp
-fromInter g (IPit x d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . APi dd
-fromInter g (IIPi x d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AIPi dd
-fromInter g (IIota x d d1) = fromInter g d >>= \dd -> fromInter g d1 >>= Ok . AIota dd
-fromInter g (IId x y) = fromInter g x >>= \dx -> fromInter g y >>= Ok . AId dx
+fromInter g (IRho d x tp d1) = ARho <$> fromInter g d <*> fromInter g tp <*> fromInter g d1
+fromInter g (IPit x d d1) = APi <$> fromInter g d <*> fromInter g d1
+fromInter g (IIPi x d d1) = AIPi <$> fromInter g d <*> fromInter g d1
+fromInter g (IIota x d d1) = AIota <$> fromInter g d <*> fromInter g d1
+fromInter g (IId x y) = AId <$> fromInter g x <*> fromInter g y
 fromInter g IStar = Ok AStar
 
 {- Convert concrete syntax into intermediate syntax -}
 fromCon :: Exp -> Err ITerm
 fromCon (SLet d e) = Bad "TO DO: Implement let expressions"
-fromCon (SLam (AOTele (AIdent e) : []) o) = fromCon o >>= Ok . ILam e
-fromCon (SLam (AOTele (AIdent e) : l) o) = fromCon (SLam l o) >>= Ok . ILam e
-fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : []) o) =
-  fromCon t >>= \ct -> fromCon o >>= Ok . ILam e . IAnn ct
-fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : l) o) =
-  fromCon t >>= \ct -> fromCon (SLam l o) >>= Ok . ILam e . IAnn ct
-fromCon (SLami (AIdent e : []) o) = fromCon o >>= Ok . ILAM e
-fromCon (SLami (AIdent e : l) o) = fromCon (SLami l o) >>= Ok . ILAM e
-fromCon (SAppi a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IAppi ca
+fromCon (SLam (AOTele (AIdent e) : []) o) = ILam e <$> fromCon o
+fromCon (SLam (AOTele (AIdent e) : l) o) = ILam e <$> fromCon (SLam l o)
+fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : []) o)
+  = ILam e <$> (IAnn <$> fromCon t <*> fromCon o)
+fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : l) o)
+  = ILam e <$> (IAnn <$> fromCon t <*> fromCon (SLam l o))
+fromCon (SLami (AIdent e : []) o) = ILAM e <$> fromCon o
+fromCon (SLami (AIdent e : l) o) = ILAM e <$> fromCon (SLami l o)
+fromCon (SAppi a b) = IAppi <$> fromCon a <*> fromCon b
 fromCon (SApp a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IApp ca
-fromCon (SRho (PTele (SVar (AIdent e)) t) a b) =
-  fromCon a >>= \ca -> fromCon t >>= \ct -> fromCon b >>= Ok . IRho ca e ct
-fromCon (SFst a) = fromCon a >>= \ca -> Ok $ IFst ca
-fromCon (SSnd a) = fromCon a >>= \ca -> Ok $ ISnd ca
-fromCon (SPair a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IIPair ca
+fromCon (SRho (SVar (AIdent e)) t a b) =  IRho <$> fromCon a <*> Ok e <*> fromCon t <*> fromCon b
+fromCon (SFst a) = IFst <$> fromCon a
+fromCon (SSnd a) = ISnd <$> fromCon a
+fromCon (SPair a b) = IIPair <$> fromCon a <*> fromCon b
 fromCon SBeta = Ok IBeta
 fromCon (SVar (AIdent e)) = Ok $ IVS e
-fromCon (SFun a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IPit "" ca
-fromCon (SPi (PTele (SVar (AIdent e)) t : []) o) = fromCon t >>= \ct -> fromCon o >>= Ok . IPit e ct
-fromCon (SPi (PTele (SVar (AIdent e)) t : l) o) = fromCon t >>= \ct -> fromCon (SPi l o) >>= Ok . IPit e ct
-fromCon (SIPi (ITele (SVar (AIdent e)) t : []) o) = fromCon t >>= \ct -> fromCon o >>= Ok . IIPi e ct
-fromCon (SIPi (ITele (SVar (AIdent e)) t : l) o) = fromCon t >>= \ct -> fromCon (SIPi l o) >>= Ok . IIPi e ct
-fromCon (SId a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IId ca
-fromCon (SIota (PTele (SVar (AIdent e)) t) b) = fromCon t >>= \ct -> fromCon b >>= Ok . IIota e ct
+fromCon (SFun a b) = IPit "" <$> fromCon a <*> fromCon b
+fromCon (SPi (PTele (SVar (AIdent e)) t : []) o) = IPit e <$> fromCon t <*> fromCon o
+fromCon (SPi (PTele (SVar (AIdent e)) t : l) o) = IPit e <$> fromCon t <*> fromCon (SPi l o)
+fromCon (SIPi (ITele (SVar (AIdent e)) t : []) o) = IIPi e <$> fromCon t <*> fromCon o
+fromCon (SIPi (ITele (SVar (AIdent e)) t : l) o) = IIPi e <$> fromCon t <*> fromCon (SIPi l o)
+fromCon (SId a b) = IId <$> fromCon a <*> fromCon b
+fromCon (SIota (PTele (SVar (AIdent e)) t) b) = IIota e <$> fromCon t <*> fromCon b
 fromCon SU = Ok IStar
 fromCon _ = Bad "Parsing Error"
 

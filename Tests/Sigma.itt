@@ -24,7 +24,7 @@ SigElim : (T : *) (S : T -> *) (C : Sigma T S -> *) ->
               (\(u : cSigma T S) . (X : *) -> ((x : Sigma T S) -> x ~ u -> C x -> X) -> X)
               (\ t st X ih . ih (Pair T S t st) B (p t st))
               (C s)
-              (\ y e cy . r (x : C x) e . cy)
+              (\ y e cy . r(x . C x) e . cy)
 
 fst : (T : *) (S : T -> *) -> Sigma T S -> T
     = \ T S . SigElim T S (\ s . T) (\ t st . t)

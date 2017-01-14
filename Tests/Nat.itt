@@ -17,10 +17,10 @@ NatInd : (Q : Nat -> *) -> ({x : Nat} -> Q x -> Q (S x)) -> Q Z -> (x : Nat) -> 
            x.2
              (\ (x : cNat) . (X : *) -> ((x' : Nat) -> (x ~ x') -> Q x' -> X) -> X)
              (/ x' . \ ih X c .
-                     ih X (\ x'' e u . c (S x'') (r (o : S x' ~ S o) e . B) (s -x'' u)))
+                     ih X (\ x'' e u . c (S x'') (r(o . S x' ~ S o) e . B) (s -x'' u)))
              (\ X c . c Z B z)
              (Q x)
-             (\x' e u . r (x : Q x) (r (o : o ~ x) e . B) . u)
+             (\x' e u . r(x . Q x) (r(o . o ~ x) e . B) . u)
 
 one   : Nat = S Z
 two   : Nat = S one
@@ -39,6 +39,16 @@ plus : Nat -> Nat -> Nat
               (\ m . m)
 
 plusTest : plus three five ~ eight = B
+
+{- How to prove these?
+sPlus : (n : Nat) (m : Nat) -> plus (S n) m ~ S (plus n m)
+  = \ n m . B
+
+plusAssoc : (n : Nat) (m : Nat) (o : Nat) -> plus n (plus m o) ~ plus (plus n m) o
+   = NatInd (\ n . (m : Nat) (o : Nat) -> plus n (plus m o) ~ plus (plus n m) o)
+            (/ n . \ re m o . r( x . S (plus n (plus m o)) ~ S x ) (re m o) . B) 
+            (\ m o . B)
+-}
 
 times : Nat -> Nat -> Nat
    = NatInd (\ n . Nat -> Nat)

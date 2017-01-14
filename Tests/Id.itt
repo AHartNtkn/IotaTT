@@ -23,4 +23,4 @@ J : (T : *) (a : T) (b : T) (C : (a : T) (b : T) -> Id T a b -> *) ->
         (\(a : T) (b : T) (u : cId T a b) . (X : *) -> ((x : Id T a b) -> x ~ u -> C a b x -> X) -> X)
         (\ X ih . ih (Refl T a) B cr)
         (C a b x)
-        (\ y e cy . r (x : C a b x) e . cy)
+        (\ y e cy . r(x . C a b x) e . cy)

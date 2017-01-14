@@ -14,4 +14,4 @@ UnitInd : (P : Unit -> *) -> P tt -> (u : Unit) -> P u
               (\(x : cUnit) . (X : *) -> ((x' : Unit) -> (x ~ x') -> P x' -> X) -> X)
               (\ X c . c tt B ptt)
               (P u)
-              (\x' eq u2 . r (x : P x) (r (o : o ~ u) eq . B) . u2)
+              (\x' eq u2 . r(x . P x) (r(o . o ~ u) eq . B) . u2)

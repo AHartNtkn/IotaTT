@@ -5,20 +5,23 @@ import Sigma
 refl : (T : *) (t : T) -> t ~ t = \ T t . B
 
 subst : (T : *) (P : T -> *) (t1 : T) -> (t2 : T) -> t1 ~ t2 -> P t1 -> P t2
-      = \ T P t1 t2 e p . r (x : P x) e . p
+      = \ T P t1 t2 e p . r(x . P x) e . p
 
 sym : (T : *) (a : T) (b : T) -> a ~ b -> b ~ a
-    = \ T a b e . r (x : x ~ a) e . B
+    = \ T a b e . r(x . x ~ a) e . B
 
 trans : (T : *) (a : T) (b : T) (c : T) -> a ~ b -> b ~ c -> a ~ c
-    = \ T a b c e f . r (x : a ~ x) f . e
+    = \ T a b c e f . r(x . a ~ x) f . e
+
+transport : (A : *) (C : *) -> A ~ C -> A -> C
+          = \ A C e a . r(x . x) e . a
 
 pair : (T : *) (S : T -> *)
        (f : (t : T) -> S t)
        (g : (t : T) -> S t) ->
        ((t : T) -> f t ~ g t) ->
        (t : T) -> Pair T S t (f t) ~ Pair T S t (g t)
-     = \ T S f g p t . r (x : Pair T S t (f t) ~ Pair T S t x) (p t) . B
+     = \ T S f g p t . r(x . Pair T S t (f t) ~ Pair T S t x) (p t) . B
 
 pair2 : (T : *) (S : T -> *)
         (f : (t : T) -> S t)
@@ -27,4 +30,4 @@ pair2 : (T : *) (S : T -> *)
         (t : T) (s : T) -> t ~ s ->
         Pair T S t (f t) ~ Pair T S s (g s)
      = \ T S f g p t s e . 
-           r (x : Pair T S t (f t) ~ Pair T S x (g x)) e . pair T S f g p t
+           r(x . Pair T S t (f t) ~ Pair T S x (g x)) e . pair T S f g p t
