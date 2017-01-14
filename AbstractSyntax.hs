@@ -215,38 +215,38 @@ instance Norm ATerm where
 
   ssdev c (AV x)       = Ok $ AV x
   ssdev c (AVS x)      = errLookup x c >>= ssdev c . fst
-  ssdev c (ALam d)     = ssdev c d >>= Ok . ssEval . ALam
-  ssdev c (AAnn d b)   = ssdev c d >>= \ cd -> ssdev c b >>= Ok . ssEval . AAnn cd
-  ssdev c (AApp d b)   = ssdev c d >>= \ cd -> ssdev c b >>= Ok . ssEval . AApp cd
-  ssdev c (ALAM d)     = ssdev c d >>= Ok . ssEval . ALAM
-  ssdev c (AAppi d b)  = ssdev c d >>= \ cd -> ssdev c b >>= Ok . ssEval . AAppi cd
-  ssdev c (AIPair d b) = ssdev c d >>= \ cd -> ssdev c b >>= Ok . AIPair cd 
-  ssdev c (AFst d)     = ssdev c d >>= Ok . ssEval . AFst
-  ssdev c (ASnd d)     = ssdev c d >>= Ok . ssEval . ASnd
+  ssdev c (ALam d)     = ssEval <$> (ALam <$> ssdev c d)
+  ssdev c (AAnn d b)   = ssEval <$> (AAnn <$> ssdev c d <*> ssdev c b)
+  ssdev c (AApp d b)   = ssEval <$> (AApp <$> ssdev c d <*> ssdev c b)
+  ssdev c (ALAM d)     = ssEval <$> (ALAM <$> ssdev c d)
+  ssdev c (AAppi d b)  = ssEval <$> (AAppi <$> ssdev c d <*> ssdev c b)
+  ssdev c (AIPair d b) = AIPair <$> ssdev c d <*> ssdev c b 
+  ssdev c (AFst d)     = ssEval <$> (AFst <$> ssdev c d)
+  ssdev c (ASnd d)     = ssEval <$> (ASnd <$> ssdev c d)
   ssdev c ABeta        = Ok ABeta
-  ssdev c (ARho d x b) = ssdev c d >>= \ cd -> ssdev c x >>= \ cx -> ssdev c b >>= Ok . ssEval . ARho cd cx
-  ssdev c (APi t tp)   = ssdev c t >>= \ ct -> ssdev c tp >>= Ok . APi ct
-  ssdev c (AIPi t tp)  = ssdev c t >>= \ ct -> ssdev c tp >>= Ok . AIPi ct
-  ssdev c (AIota t t') = ssdev c t >>= \ ct -> ssdev c t' >>= Ok . AIota ct
-  ssdev c (AId x y)    = ssdev c x >>= \ cx -> ssdev c y >>= Ok . AId cx
+  ssdev c (ARho d x b) = ssEval <$> (ARho <$> ssdev c d <*> ssdev c x <*> ssdev c b)
+  ssdev c (APi t t')   = APi <$> ssdev c t <*> ssdev c t'
+  ssdev c (AIPi t t')  = AIPi <$> ssdev c t <*> ssdev c t'
+  ssdev c (AIota t t') = AIota <$> ssdev c t <*> ssdev c t'
+  ssdev c (AId x y)    = AId <$> ssdev c x <*> ssdev c y
   ssdev c AStar = Ok AStar
 
 {- Annotation Erasure -}
 erase :: TopCtx -> ATerm -> Err Term
 erase c (AV x)        = Ok $ V x
 erase c (AVS x)       = errLookup x c >>= erase c . fst
-erase c (ALam t)      = erase c t >>= Ok . Lam
+erase c (ALam t)      = Lam <$> erase c t
 erase c (AAnn t t')   = erase c t'
-erase c (AApp t t')   = erase c t >>= \et -> erase c t' >>= Ok . App et 
-erase c (ALAM t)      = erase c t >>= Ok . sub (Lam (V 0)) 0 -- Free variables need to be decremented. 
+erase c (AApp t t')   = App <$> erase c t <*> erase c t'
+erase c (ALAM t)      = sub (V 0) 0 <$> erase c t -- Free variables need to be decremented. 
 erase c (AAppi t t')  = erase c t
 erase c (AIPair t t') = erase c t
 erase c (AFst t)      = erase c t
 erase c (ASnd t)      = erase c t
 erase c ABeta         = Ok $ Lam (V 0)
 erase c (ARho _ _ t') = erase c t'
-erase c (APi t t1)    = erase c t >>= \et -> erase c t1 >>= Ok . Pi et
-erase c (AIPi t t1)   = erase c t >>= \et -> erase c t1 >>= Ok . IPi et
-erase c (AIota t t1)  = erase c t >>= \et -> erase c t1 >>= Ok . Iota et
-erase c (AId x x1)    = erase c x >>= \et -> erase c x1 >>= Ok . Id et
+erase c (APi t t1)    = Pi <$> erase c t <*> erase c t1
+erase c (AIPi t t1)   = IPi <$> erase c t <*> erase c t1
+erase c (AIota t t1)  = Iota <$> erase c t <*> erase c t1
+erase c (AId x x1)    = Id <$> erase c x <*> erase c x1
 erase c AStar = Ok $ Star
