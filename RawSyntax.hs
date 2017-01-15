@@ -90,7 +90,7 @@ fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : l) o)
 fromCon (SLami (AIdent e : []) o) = ILAM e <$> fromCon o
 fromCon (SLami (AIdent e : l) o) = ILAM e <$> fromCon (SLami l o)
 fromCon (SAppi a b) = IAppi <$> fromCon a <*> fromCon b
-fromCon (SApp a b) = fromCon a >>= \ca -> fromCon b >>= Ok . IApp ca
+fromCon (SApp a b) = IApp <$> fromCon a <*> fromCon b
 fromCon (SRho (SVar (AIdent e)) t a b) =  IRho <$> fromCon a <*> Ok e <*> fromCon t <*> fromCon b
 fromCon (SFst a) = IFst <$> fromCon a
 fromCon (SSnd a) = ISnd <$> fromCon a
