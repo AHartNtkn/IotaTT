@@ -56,7 +56,7 @@ then be typed as `A` via `c.1`, and typed as `B c.1` with
 
 Heterogeneous identity is denoted `a ~ b`.
 
-Elimination is denoted `r (<NAME> . <TYPE>) <EQUATION> . <TERM>`.
+Elimination is denoted `r(<NAME> . <TYPE>) <EQUATION> . <TERM>`.
 
 This is one of the main differences between this implementation and
 the Stump paper. Here, `r` binds a variable, and one must provide a type
@@ -65,7 +65,7 @@ we had a proof that `e : t1 ~ t2`, and we knew that `p : P t1`, and we
 want to obtain `P t2`. We have, as an intermediate form, `x . P x`.
 We use this in the full elimination
 ```
-r (x . P x) e . p
+r(x . P x) e . p
 ```
 
 Which will be of type `P t2`. Note that x is only bound in the intermediate
