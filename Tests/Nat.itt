@@ -1,5 +1,8 @@
 module Nat where
 
+import Sigma
+import Coproduct
+
 cNat : * = (a : *) -> (a -> a) -> a -> a
 
 cZ : cNat = \ a s z . z
@@ -39,6 +42,11 @@ plus : Nat -> Nat -> Nat
               (\ m . m)
 
 plusTest : plus three five ~ eight = B
+
+natSplit : (n : Nat) -> Coproduct (n ~ Z) (Sigma Nat (\ m . n ~ S m))
+  = NatInd (\ n . Coproduct (n ~ Z) (Sigma Nat (\ m . n ~ S m)))
+           (/ n . \ re . Inr ((S n) ~ Z) (Sigma Nat (\ m . S n ~ S m)) (Pair Nat (\ m . S n ~ S m) n B))
+           (Inl (Z ~ Z) (Sigma Nat (\ m . Z ~ S m)) B)
 
 {- How to prove these?
 sPlus : (n : Nat) (m : Nat) -> plus (S n) m ~ S (plus n m)

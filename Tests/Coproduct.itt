@@ -1,0 +1,32 @@
+module Coproduct where
+
+cCoproduct : * -> * -> * = \ A C . (X : *) -> (A -> X) -> (C -> X) -> X
+
+cInl : (A : *) (C : *) -> A -> cCoproduct A C = \ _ _ a _ f _ . f a
+
+cInr : (A : *) (C : *) -> C -> cCoproduct A C = \ _ _ c _ _ f . f c
+
+Coproduct : * -> * -> *
+  = \ A C .
+      i (c : cCoproduct A C) . 
+        (P : cCoproduct A C -> *) ->
+        ((a : A) -> P (cInl A C a)) ->
+        ((c : C) -> P (cInr A C c)) ->
+        P c
+
+Inl : (A : *) (C : *) -> A -> Coproduct A C = \ A C a . [ cInl A C a | \ _ f _ . f a ]
+
+Inr : (A : *) (C : *) -> C -> Coproduct A C = \ A C c . [ cInr A C c | \ _ _ f . f c ]
+
+CoprodElim : (A : *) (C : *) ->
+             (P : Coproduct A C -> *) ->
+             ((a : A) -> P (Inl A C a)) ->
+             ((c : C) -> P (Inr A C c)) ->
+             (c : Coproduct A C) -> P c
+  = \ A C P pl pr c .
+      c.2
+        (\ (x : cCoproduct A C) . (X : *) -> ((x' : Coproduct A C) -> (x ~ x') -> P x' -> X) -> X)
+        (\ a X ih . ih (Inl A C a) B (pl a))
+        (\ c X ih . ih (Inr A C c) B (pr c))
+        (P c)
+        (\x' e u . r(x . P x) (r(o . o ~ c) e . B) . u)
