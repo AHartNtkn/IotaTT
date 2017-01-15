@@ -157,23 +157,3 @@ check c g (AId x y) AStar = Ok ()
 check c g (AId x y) _ = Bad "Heterogenious equalities can only have AStar kind."
 check c g AStar AStar = Ok () 
 check c g AStar _ = Bad "* can only have type *."
-
-
-tr = (AApp (AV 1) (AApp (AApp (AApp (AV 3) (AV 2)) (AV 1)) (AV 0)))
-ty = (AV 2)
-
-exCtx = [("cZ",(ALam (ALam (ALam (AV 0))),AVS "cNat")),("cNat",(APi AStar (APi (APi (AV 0) (AV 1)) (APi (AV 1) (AV 2))),AStar))]
-
-ctx = Snoc (Snoc (Snoc (Snoc Empty (AVS "cNat")) AStar) (APi (AV 0) (AV 1))) (AV 1)
-
-{-
-infer c g (AApp (ALam t) s) = infer c g (sub s 0 t) >>= Ok . sdev
-infer c g (AApp t t') = case infer c g (sdev t) of
-  Bad y -> Bad y
-  Ok (APi tp1 tp2) -> check c g (sdev t') tp1 >> Ok (sdev (sub t' 0 tp2))
-  Ok _ -> Bad "Term is not a pi type."
-
-check exCtx ctx (AApp (AApp (AApp (AV 3) (AV 2)) (AV 1)) (AV 0)) (AV 2)
--}
-
-res = infer exCtx ctx (AApp (AV 3) (AV 2))
