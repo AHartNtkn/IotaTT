@@ -116,6 +116,11 @@ References
  * [Simply Easy!](http://strictlypositive.org/Easy.pdf), Andres Loh, Conor McBride, Wouter Swierstra.
    I used the lambda-Pi system described on page 6 as a reference when unifying types and kinds.
 
+ * [Computational Higher Type Theory](https://arxiv.org/pdf/1606.09638v2.pdf), Carlo Angiuli, Robert Harper.
+
+ * [Cubical Type Theory](https://github.com/mortberg/cubicaltt), Cyril Cohen, Thierry Coquand, Simon Huber, and
+   Anders Mörtberg.
+
 Authors
 -------
 
