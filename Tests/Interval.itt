@@ -1,10 +1,48 @@
 module Interval where
 
-cInt : * = (X : *) -> (l : X) -> (r : X) -> l ~ r -> X
+import Id
+
+
+cInt : * = (X : *) -> (l : X) -> (r : X) -> Id X l r -> X
 
 cLeft : cInt = \ _ l _ _ . l
 
 cRight : cInt = \ _ _ r _ . r
 
-cSeg : cLeft ~ cRight = <x> \ X l r (p : l ~ r) . p @ x
+cSegLem : cLeft ~ cRight
+        = <x> \ (X : *) (l : X) (r : X) (p : Id X l r) . p.1 (\ x . l ~ x) (<_> l) @ x
+
+cSeg : Id cInt cLeft cRight
+     = r(x . Id cInt cLeft x) cSegLem . (Refl cInt cLeft)
+
+cSeg2 : Id cInt cLeft cRight
+     = r(x . Id cInt cLeft x)
+        (<x> \ (X : *) (l : X) (r : X) (p : Id X l r) . (J X l r (\ t1 t2 _ . t1 ~ t2) (<_> l) p) @ x) .
+        (Refl cInt cLeft)
+
+Int : *
+    = i (x : cInt) .
+        (P : cInt -> *)
+        (pl : P cLeft)
+        (pr : P cRight)
+        (pseg : PathOver (P cLeft) (P cRight) (mapOnPaths cInt * P cLeft cRight cSeg) pl pr)
+        -> P x
+
+Left : Int
+     = [ cLeft | \ _ l _ _ . l ]
+
+Right : Int
+      = [ cRight | \ _ _ r _ . r ]
+
+SegLem : Left ~ Right
+    = <y> [ cSegLem @ y
+          | \ (P : cInt -> *) (pl : P cLeft) (pr : P cRight)
+                     (pseg : PathOver (P cLeft) (P cRight) (mapOnPaths cInt * P cLeft cRight cSeg) pl pr) .
+                     (pseg.1
+                        (\ x . (transport (P cLeft) (P cRight) (mapOnPaths cInt * P cLeft cRight cSeg) pl) ~ x)
+                        (<_> (transport (P cLeft) (P cRight) (mapOnPaths cInt * P cLeft cRight cSeg) pl)) @ y)
+          ]
+
+Seg : Id Int Left Right
+    = r(x . Id Int Left x) SegLem . (Refl Int Left)
 

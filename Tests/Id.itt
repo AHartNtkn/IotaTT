@@ -25,14 +25,33 @@ J : (T : *) (a : T) (b : T) (C : (a : T) (b : T) -> Id T a b -> *) ->
         (C a b x)
         (\ y e cy . r(x . C a b x) e . cy)
 
+mapOnPaths : (T : *) (A : *) (S : T -> A) (t1 : T) (t2 : T) (p : Id T t1 t2) -> Id A (S t1) (S t2)
+           = \ T A S t1 t2 p . J T t1 t2 (\ a b p . Id A (S a) (S b)) (Refl A (S t1)) p
+
 transport : (T : *) (S : *) (p : Id * T S) -> T -> S
           = \ T S p t . J * T S (\ T S p . S) t p
+
+transporti : (T : *) (S : *) (p : Id * S T) -> S -> T
+           = \ T S p s . J * S T (\ S T p . T) s p
 
 observe : (T : *) (t1 : T) (t2 : T) -> Id T t1 t2 -> t1 ~ t2
         = \ T t1 t2 p . J T t1 t2 (\ t1 t2 _ . t1 ~ t2) (<_> t1) p
 
 PathOver : (T : *) (S : *) (p : Id * T S) (t : T) (s : S) -> *
          = \T S p t s . Id S (transport T S p t) s
+
+depMapOnPaths : (T : *) (A : T -> *) (f : (t : T) -> A t) (t1 : T) (t2 : T) (p : Id T t1 t2) ->
+                PathOver (A t1) (A t2) (mapOnPaths T * A t1 t2 p) (f t1) (f t2)
+   = \ T A f t1 t2 .
+       J T t1 t2
+         (\ t1 t2 p . PathOver (A t1) (A t2) (mapOnPaths T * A t1 t2 p) (f t1) (f t2))
+         (Refl (A t1) (f t1))
+
+transportOb : (T : *) (S : *) (p : Id * T S) (t : T) -> transport T S p t ~ t
+   = \ T S p t . J * T S (\T S p . transport T S p t ~ t) (<_> t) p
+
+depObserve : (T : *) (S : *) (p : Id * T S) (t : T) (s : S) -> PathOver T S p t s -> t ~ s
+  = \ T S p t s po . r(x . x ~ s) (transportOb T S p t) . (observe S (transport T S p t) s po)
 
 IdExtLem : (T : *) (S : T -> *)
         (f : (t : T) -> S t)

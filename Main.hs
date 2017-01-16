@@ -25,7 +25,7 @@ import RawSyntax
 extention = ".itt"
 
 endQ :: String -> Bool
-endQ s = extention == (map (reverse s!!) $ reverse [0..length extention-1])
+endQ s = extention == reverse (take (length extention) (reverse s))
 
 -- =*=*=*=*=*=*=*=* Declarations *=*=*=*=*=*=*=*=*=
 
