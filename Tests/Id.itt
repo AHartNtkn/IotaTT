@@ -21,6 +21,29 @@ J : (T : *) (a : T) (b : T) (C : (a : T) (b : T) -> Id T a b -> *) ->
   = \ T a b C cr x .
       x.2
         (\(a : T) (b : T) (u : cId T a b) . (X : *) -> ((x : Id T a b) -> x ~ u -> C a b x -> X) -> X)
-        (\ X ih . ih (Refl T a) B cr)
+        (\ X ih . ih (Refl T a) (<_> Refl T a) cr)
         (C a b x)
         (\ y e cy . r(x . C a b x) e . cy)
+
+transport : (T : *) (S : *) (p : Id * T S) -> T -> S
+          = \ T S p t . J * T S (\ T S p . S) t p
+
+observe : (T : *) (t1 : T) (t2 : T) -> Id T t1 t2 -> t1 ~ t2
+        = \ T t1 t2 p . J T t1 t2 (\ t1 t2 _ . t1 ~ t2) (<_> t1) p
+
+PathOver : (T : *) (S : *) (p : Id * T S) (t : T) (s : S) -> *
+         = \T S p t s . Id S (transport T S p t) s
+
+IdExtLem : (T : *) (S : T -> *)
+        (f : (t : T) -> S t)
+        (g : (t : T) -> S t) ->
+        ((t : T) -> Id (S t) (f t) (g t)) ->
+        f ~ g
+      = \ T S f g p . <x> \ (t : T) . (observe (S t) (f t) (g t) (p t)) @ x
+
+IdExt : (T : *) (S : T -> *)
+        (f : (t : T) -> S t)
+        (g : (t : T) -> S t) ->
+        ((t : T) -> Id (S t) (f t) (g t)) ->
+        Id ((t : T) -> S t) f g
+      = \ T S f g p . r(x . Id ((t : T) -> S t) f x) (IdExtLem T S f g p) . (Refl ((t : T) -> S t) f)

@@ -69,8 +69,31 @@ r(x . P x) e . p
 ```
 
 Which will be of type `P t2`. Note that x is only bound in the intermediate
-type-form, not in anything else. Additionally, reflexive proofs are denoted
-`B`.
+type-form, not in anything else.
+
+This branch modifies the identity type, removing reflexive proofs using `B`.
+Instead, we have a new operation which can bind a path, denoted
+
+```
+< x > f (p @ x)
+```
+
+where `x` is the path name, and `@` denotes path application. This operates
+more or less how it does in systems like cubical realizability and cubical
+type theory, but it constructs a term of an unannotated heterogeneous equality
+type `a ~ b`, which is not a pathover. If `p : a ~ b`, then `< x > f (p @ x)`
+will have type `f a ~ f b`. This allows one to prove extensionality as;
+
+```
+ext : (T : *) (S : T -> *)
+      (f : (t : T) -> S t)
+      (g : (t : T) -> S t) ->
+      ((t : T) -> f t ~ g t) ->
+      f ~ g
+    = \ T S f g p . <x> \ (t : T) . (p t) @ x
+```
+
+Hopefully, this will allow me to construct higher inductive types.
 
 Install
 -------

@@ -109,12 +109,16 @@ data ATerm
          | AIPair ATerm ATerm
          | AFst ATerm
          | ASnd ATerm
-         | ABeta 
          | ARho ATerm ATerm ATerm
          | APi ATerm ATerm
          | AIPi ATerm ATerm
          | AIota ATerm ATerm
          | AId ATerm ATerm
+         | AT0
+         | AT1
+         | AI
+         | APB ATerm
+         | APApp ATerm ATerm
          | AStar
          deriving (Eq , Show)
 
@@ -132,12 +136,16 @@ instance DeBruijin ATerm where
   freeIn (AIPair d d1) n = freeIn d n || freeIn d1 n
   freeIn (AFst d)      n = freeIn d n
   freeIn (ASnd d)      n = freeIn d n
-  freeIn ABeta         n = False
   freeIn (ARho d tp b) n = freeIn d n || freeIn tp (1 + n) || freeIn b n
   freeIn (APi t tp)    n = freeIn t n || freeIn tp (1 + n)
   freeIn (AIPi t tp)   n = freeIn t n || freeIn tp (1 + n)
   freeIn (AIota t tp)  n = freeIn t n || freeIn tp (1 + n)
   freeIn (AId x y)     n = freeIn x n || freeIn y n
+  freeIn AT0 n           = False
+  freeIn AT1 n           = False
+  freeIn AI n            = False
+  freeIn (APB a) n       = freeIn a (1 + n)
+  freeIn (APApp d d1)  n = freeIn d n || freeIn d1 n
   freeIn AStar n = False
 
   incFree (AV x)       n i = if x >= n then AV (i + x) else AV x
@@ -150,12 +158,16 @@ instance DeBruijin ATerm where
   incFree (AIPair d b) n i = AIPair (incFree d n i) (incFree b n i)
   incFree (AFst d)     n i = AFst (incFree d n i)
   incFree (ASnd d)     n i = ASnd (incFree d n i)
-  incFree ABeta        n i = ABeta
   incFree (ARho d t b) n i = ARho (incFree d n i) (incFree t (1 + n) i) (incFree b n i)
   incFree (APi t tp)   n i = APi (incFree t n i) (incFree tp (1 + n) i)
   incFree (AIPi t tp)  n i = AIPi (incFree t n i) (incFree tp (1 + n) i)
   incFree (AIota t tp) n i = AIota (incFree t n i) (incFree tp (1 + n) i)
   incFree (AId x y)    n i = AId (incFree x n i) (incFree y n i)
+  incFree AT0 n i         = AT0
+  incFree AT1 n i         = AT1
+  incFree AI n i          = AI
+  incFree (APB a) n i     = APB (incFree a (1 + n) i)
+  incFree (APApp d b) n i = APApp (incFree d n i) (incFree b n i)
   incFree AStar n i = AStar
 
 instance Substitute ATerm ATerm where
@@ -174,12 +186,16 @@ instance Substitute ATerm ATerm where
   sub s n (AIPair d b)  = AIPair (sub s n d) (sub s n b)
   sub s n (AFst d)      = AFst (sub s n d)
   sub s n (ASnd d)      = ASnd (sub s n d)
-  sub s n ABeta         = ABeta
   sub s n (ARho d tp b) = ARho (sub s n d) (sub (incFree s 0 1) (1 + n) tp) (sub s n b)
   sub s n (APi t tp)    = APi (sub s n t) (sub (incFree s 0 1) (1 + n) tp)
   sub s n (AIPi t tp)   = AIPi (sub s n t) (sub (incFree s 0 1) (1 + n) tp)
   sub s n (AIota t tp)  = AIota (sub s n t) (sub (incFree s 0 1) (1 + n) tp)
   sub s n (AId x y)     = AId (sub s n x) (sub s n y)
+  sub s n AT0           = AT0
+  sub s n AT1           = AT1
+  sub s n AI            = AI
+  sub s n (APB a)       = APB (sub (incFree s 0 1) (1 + n) a)
+  sub s n (APApp d b)   = APApp (sub s n d) (sub s n b)
   sub s n AStar = AStar
 
 instance Norm ATerm where
@@ -187,12 +203,20 @@ instance Norm ATerm where
   ssEval (AApp (ALam tp) s) = sub s 0 tp
   ssEval (ALam (AApp tp (AV 0))) =
     if freeIn tp 0 then ALam (AApp tp (AV 0)) else sub (AV 0) 0 tp
+  ssEval (ALam (AAnn t (AApp tp (AV 0)))) =
+    if freeIn tp 0 then ALam (AAnn t (AApp tp (AV 0))) else sub (AV 0) 0 tp
   ssEval (AAppi (ALAM tp) s) = sub s 0 tp
   ssEval (ALAM (AAppi tp (AV 0))) =
     if freeIn tp 0 then ALAM (AAppi tp (AV 0)) else sub (AV 0) 0 tp
+  ssEval (ALAM (AAnn t (AAppi tp (AV 0)))) =
+    if freeIn tp 0 then ALAM (AAnn t (AAppi tp (AV 0))) else sub (AV 0) 0 tp
+  ssEval (APApp (APB tp) s) = sub s 0 tp
+  ssEval (APB (APApp tp (AV 0))) =
+    if freeIn tp 0 then APB (APApp tp (AV 0)) else sub (AV 0) 0 tp
   ssEval (AFst (AIPair d b)) = d
   ssEval (ASnd (AIPair d b)) = b
-  ssEval (ARho ABeta _ b) = b
+  ssEval (ARho (APB a) t b) =
+    if freeIn a 0 then b else ARho (APB a) t b
   ssEval tp = tp
 
   sdev (AV x)       = AV x
@@ -205,12 +229,16 @@ instance Norm ATerm where
   sdev (AIPair d b) = AIPair (sdev d) (sdev b)
   sdev (AFst d)     = ssEval (AFst (sdev d))
   sdev (ASnd d)     = ssEval (ASnd (sdev d))
-  sdev ABeta        = ABeta
   sdev (ARho d x b) = ssEval (ARho (sdev d) (sdev x) (sdev b))
   sdev (APi t tp)   = APi (sdev t) (sdev tp)
   sdev (AIPi t tp)  = AIPi (sdev t) (sdev tp)
   sdev (AIota t t') = AIota (sdev t) (sdev t')
   sdev (AId x y)    = AId (sdev x) (sdev y)
+  sdev AT0          = AT0
+  sdev AT1          = AT1
+  sdev AI           = AI
+  sdev (APB a)      = ssEval (APB (sdev a))
+  sdev (APApp d b)  = ssEval (APApp (sdev d) (sdev b))
   sdev AStar = AStar
 
   ssdev c (AV x)       = Ok $ AV x
@@ -223,12 +251,16 @@ instance Norm ATerm where
   ssdev c (AIPair d b) = AIPair <$> ssdev c d <*> ssdev c b 
   ssdev c (AFst d)     = ssEval <$> (AFst <$> ssdev c d)
   ssdev c (ASnd d)     = ssEval <$> (ASnd <$> ssdev c d)
-  ssdev c ABeta        = Ok ABeta
   ssdev c (ARho d x b) = ssEval <$> (ARho <$> ssdev c d <*> ssdev c x <*> ssdev c b)
   ssdev c (APi t t')   = APi <$> ssdev c t <*> ssdev c t'
   ssdev c (AIPi t t')  = AIPi <$> ssdev c t <*> ssdev c t'
   ssdev c (AIota t t') = AIota <$> ssdev c t <*> ssdev c t'
   ssdev c (AId x y)    = AId <$> ssdev c x <*> ssdev c y
+  ssdev c AT0          = Ok AT0
+  ssdev c AT1          = Ok AT1
+  ssdev c AI           = Ok AI
+  ssdev c (APB a)      = ssEval <$> (APB <$> ssdev c a)
+  ssdev c (APApp d b)  = ssEval <$> (APApp <$> ssdev c d <*> ssdev c b)
   ssdev c AStar = Ok AStar
 
 {- Annotation Erasure -}
@@ -243,10 +275,14 @@ erase c (AAppi t t')  = erase c t
 erase c (AIPair t t') = erase c t
 erase c (AFst t)      = erase c t
 erase c (ASnd t)      = erase c t
-erase c ABeta         = Ok $ Lam (V 0)
 erase c (ARho _ _ t') = erase c t'
 erase c (APi t t1)    = Pi <$> erase c t <*> erase c t1
 erase c (AIPi t t1)   = IPi <$> erase c t <*> erase c t1
 erase c (AIota t t1)  = Iota <$> erase c t <*> erase c t1
 erase c (AId x x1)    = Id <$> erase c x <*> erase c x1
+erase c AT0           = Ok $ Lam (Lam (V 0))
+erase c AT1           = Ok $ Lam (Lam (V 0))
+erase c AI            = Ok $ Pi Star (Pi (V 0) (V 0))
+erase c (APB a)       = Ok $ Lam (V 0) -- sub (V 0) 0 <$> erase c a
+erase c (APApp t t')  = erase c t 
 erase c AStar = Ok $ Star

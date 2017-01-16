@@ -26,7 +26,7 @@ CoprodElim : (A : *) (C : *) ->
   = \ A C P pl pr c .
       c.2
         (\ (x : cCoproduct A C) . (X : *) -> ((x' : Coproduct A C) -> (x ~ x') -> P x' -> X) -> X)
-        (\ a X ih . ih (Inl A C a) B (pl a))
-        (\ c X ih . ih (Inr A C c) B (pr c))
+        (\ a X ih . ih (Inl A C a) (<_> Inl A C a) (pl a))
+        (\ c X ih . ih (Inr A C c) (<_> Inr A C c) (pr c))
         (P c)
-        (\x' e u . r(x . P x) (r(o . o ~ c) e . B) . u)
+        (\x' e u . r(x . P x) (r(o . o ~ c) e . (<_> c)) . u)

@@ -29,7 +29,6 @@ printA i (ALAM a) = "/" ++ char i ++ " -> " ++ printA (1 + i) a
 printA i (AIPair a b) = "[" ++ printA i a ++ " | " ++ printA i b ++ "]"
 printA i (AFst a) = parenA i a ++ ".1"
 printA i (ASnd a) = parenA i a ++ ".2"
-printA i ABeta = "Beta"
 printA i (ARho a t b) = "r(" ++ char i ++ " : " ++ printA (1 + i) t ++ ") " ++ printA i a ++ " . " ++ printA i b
 printA i (AIota a b) = "i(" ++ char i ++ " : " ++ printA i a ++ ") . " ++ printA (1 + i) b 
 printA i (AId a b) = printA i a ++ " ~ " ++ printA i b

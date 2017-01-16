@@ -20,10 +20,10 @@ NatInd : (Q : Nat -> *) -> ({x : Nat} -> Q x -> Q (S x)) -> Q Z -> (x : Nat) -> 
            x.2
              (\ (x : cNat) . (X : *) -> ((x' : Nat) -> (x ~ x') -> Q x' -> X) -> X)
              (/ x' . \ ih X c .
-                     ih X (\ x'' e u . c (S x'') (r(o . S x' ~ S o) e . B) (s -x'' u)))
-             (\ X c . c Z B z)
+                     ih X (\ x'' e u . c (S x'') (r(o . S x' ~ S o) e . (<_> S x')) (s -x'' u)))
+             (\ X c . c Z (<_> Z) z)
              (Q x)
-             (\x' e u . r(x . Q x) (r(o . o ~ x) e . B) . u)
+             (\x' e u . r(x . Q x) (r(o . o ~ x) e . (<_> x)) . u)
 
 one   : Nat = S Z
 two   : Nat = S one
@@ -41,12 +41,12 @@ plus : Nat -> Nat -> Nat
               (/ n . \ re m . S (re m))
               (\ m . m)
 
-plusTest : plus three five ~ eight = B
+plusTest : plus three five ~ eight = <_> eight
 
 natSplit : (n : Nat) -> Coproduct (n ~ Z) (Sigma Nat (\ m . n ~ S m))
   = NatInd (\ n . Coproduct (n ~ Z) (Sigma Nat (\ m . n ~ S m)))
-           (/ n . \ re . Inr ((S n) ~ Z) (Sigma Nat (\ m . S n ~ S m)) (Pair Nat (\ m . S n ~ S m) n B))
-           (Inl (Z ~ Z) (Sigma Nat (\ m . Z ~ S m)) B)
+           (/ n . \ re . Inr (S n ~ Z) (Sigma Nat (\ m . S n ~ S m)) (Pair Nat (\ m . S n ~ S m) n (<_> S n)))
+           (Inl (Z ~ Z) (Sigma Nat (\ m . Z ~ S m)) (<_> Z))
 
 {- How to prove these?
 sPlus : (n : Nat) (m : Nat) -> plus (S n) m ~ S (plus n m)
@@ -63,4 +63,4 @@ times : Nat -> Nat -> Nat
             (/ n . \ re m . plus m (re m))
             (\ m . Z)
 
-timesTest : times eight two ~ times four four = B
+timesTest : times eight two ~ times four four = (<_> plus eight eight)

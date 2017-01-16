@@ -16,7 +16,7 @@ BoolInd : (P : Bool -> *) -> P True -> P False -> (b : Bool) -> P b
     = \ P pt pf b .
         b.2
           (\(x : cBool) . (X : *) -> ((x' : Bool) -> (x ~ x') -> P x' -> X) -> X)
-          (\ X c . c True B pt)
-          (\ X c . c False B pf)
+          (\ X c . c True (<_> True) pt)
+          (\ X c . c False (<_> False) pf)
           (P b)
-          (\x' eq u2 . r(x . P x) (r(o . o ~ b) eq . B) . u2)
+          (\x' eq u2 . r(x . P x) (r(o . o ~ b) eq . (<_> b)) . u2)

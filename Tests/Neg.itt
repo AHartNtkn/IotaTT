@@ -10,7 +10,7 @@ conLem1 : Bool -> *
         = BoolInd (\b . *) Unit Empty
 
 conLem2 : True ~ False -> Unit ~ Empty
-        = \ e . r(x . conLem1 True ~ conLem1 x) e . B
+        = \ e . r(x . conLem1 True ~ conLem1 x) e . (<_> conLem1 True)
 
 transport : (A : *) (C : *) -> A ~ C -> A -> C
           = \ A C e a . r(x . x) e . a

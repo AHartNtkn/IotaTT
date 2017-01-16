@@ -5,6 +5,87 @@ module TypeChecker where
 import ErrM
 import AbstractSyntax
 
+{- Handle dimention variables -}
+dimSub :: TopCtx -> ((Ctx , ATerm) , (Ctx , ATerm)) -> Int -> Err (ATerm , ATerm)
+dimSub c ((g1, AV n1), (g2, AV n2)) n = if n1 == n2 then Ok (AV n1 , AV n2) else Bad "Bound vars didn't match."
+dimSub c ((g1, AVS x1), (g2, AVS x2)) n = if x1 == x2 then Ok (AVS x1, AVS x2) else Bad "Defined vars didn't match."
+dimSub c ((g1, ALam (AAnn ty1 e1)), (g2, ALam (AAnn ty2 e2))) n =
+  dimSub c ((Snoc g1 (sub (AV 0) 0 ty1), e1), (Snoc g2 (sub (AV 0) 0 ty2), e2)) (1 + n) >>= \(fs, sn) ->
+  Ok (ALam fs , ALam sn)
+dimSub c ((g1, ALam e1), (g2, ALam e2)) n =
+  dimSub c ((Snoc g1 (APi AStar (APi (AV 0) (AV 0))), e1),
+            (Snoc g2 (APi AStar (APi (AV 0) (AV 0))), e2)) (1 + n) >>= \(fs, sn) ->
+  Ok (ALam fs , ALam sn)
+dimSub c ((g1, ALAM (AAnn ty1 e1)), (g2, ALAM (AAnn ty2 e2))) n =
+  dimSub c ((Snoc g1 (sub (AV 0) 0 ty1), e1), (Snoc g2 (sub (AV 0) 0 ty2), e2)) (1 + n) >>= \(fs, sn) ->
+  Ok (ALAM fs , ALAM sn)
+dimSub c ((g1, ALAM e1), (g2, ALAM e2)) n =
+  dimSub c ((Snoc g1 (APi AStar (APi (AV 0) (AV 0))), e1),
+            (Snoc g2 (APi AStar (APi (AV 0) (AV 0))), e2)) (1 + n) >>= \(fs, sn) ->
+  Ok (ALAM fs , ALAM sn)
+dimSub c ((g1, APB e1), (g2, APB e2)) n =
+  dimSub c ((Snoc g1 AI, e1), (Snoc g2 AI, e2)) (1 + n) >>= \(fs, sn) ->
+  Ok (APB fs , APB sn)
+dimSub c ((g1, AApp e11 e12), (g2, AApp e21 e22)) n =
+  dimSub c ((g1, e11), (g2, e21)) n >>= \(e11, e21) ->
+  dimSub c ((g1, e12), (g2, e22)) n >>= \(e12, e22) ->
+  Ok (AApp e11 e12 , AApp e21 e22)
+dimSub c ((g1, AAppi e11 e12), (g2, AAppi e21 e22)) n =
+  dimSub c ((g1, e11), (g2, e21)) n >>= \(e11, e21) ->
+  dimSub c ((g1, e12), (g2, e22)) n >>= \(e12, e22) ->
+  Ok (AAppi e11 e12 , AAppi e21 e22)
+dimSub c ((g1, AIPair e11 e12), (g2, AIPair e21 e22)) n =
+  dimSub c ((g1, e11), (g2, e21)) n >>= \(e11, e21) ->
+  dimSub c ((g1, e12), (g2, e22)) n >>= \(e12, e22) ->
+  Ok (AIPair e11 e12 , AIPair e21 e22)
+dimSub c ((g1, AFst e1), (g2, AFst e2)) n =
+  dimSub c ((g1, e1), (g2, e2)) n >>= \(e1, e2) ->
+  Ok (AFst e1 , AFst e2)
+dimSub c ((g1, ASnd e1), (g2, ASnd e2)) n =
+  dimSub c ((g1, e1), (g2, e2)) n >>= \(e1, e2) ->
+  Ok (ASnd e1 , ASnd e2)
+dimSub c ((g1, AT0), (g2, AT0)) n = Ok (AT0, AT0)
+dimSub c ((g1, AT1), (g2, AT1)) n = Ok (AT1, AT1)
+dimSub c ((g1, AI), (g2, AI)) n = Ok (AI, AI)
+dimSub c ((g1, AId e11 e12), (g2, AId e21 e22)) n =
+  dimSub c ((g1, e11), (g2, e21)) n >>= \(e11, e21) ->
+  dimSub c ((g1, e12), (g2, e22)) n >>= \(e12, e22) ->
+  Ok (AId e11 e12 , AId e21 e22)
+dimSub c ((g1, AStar), (g2, AStar)) n = Ok (AStar, AStar)
+dimSub c ((g1, APi e11 e12), (g2, APi e21 e22)) n =
+  dimSub c ((g1, e11), (g2, e21)) n >>= \(e11, e21) ->
+  dimSub c ((g1, e12), (g2, e22)) (1 + n) >>= \(e12, e22) ->
+  Ok (APi e11 e12 , APi e21 e22)
+dimSub c ((g1, AIPi e11 e12), (g2, AIPi e21 e22)) n =
+  dimSub c ((g1, e11), (g2, e21)) n >>= \(e11, e21) ->
+  dimSub c ((g1, e12), (g2, e22)) (1 + n) >>= \(e12, e22) ->
+  Ok (AIPi e11 e12 , AIPi e21 e22)
+dimSub c ((g1, AIota e11 e12), (g2, AIota e21 e22)) n =
+  dimSub c ((g1, e11), (g2, e21)) n >>= \(e11, e21) ->
+  dimSub c ((g1, e12), (g2, e22)) (1 + n) >>= \(e12, e22) ->
+  Ok (AIota e11 e12 , AIota e21 e22)
+dimSub c ((g1, ARho e11 ty1 e12), (g2, ARho e21 ty2 e22)) n =
+  if freeIn ty1 (n + 1) && freeIn ty2 (n + 1)
+  then
+    dimSub c ((g1, e11), (g2, e21)) n >>= \(e11, e21) ->
+    dimSub c ((g1, e12), (g2, e22)) (1 + n) >>= \(e12, e22) ->
+    Ok (ARho e11 ty1 e12 , ARho e21 ty2 e22)
+  else Bad "Path variables cannot apear in Rho patterns."
+dimSub c ((g1, APApp e1 n0), (g2, APApp e2 n1)) n =
+  if n0 == AT0 && n1 == AT1
+  then
+    case infer c g1 e1 >>= ssdev c of
+      Ok (AId lf ri) -> Ok (lf , ri)
+      Bad s -> Bad s
+      _ -> Bad "Cannot apply path variable to non-path"
+  else 
+    dimSub c ((g1, e1), (g2, e2)) n >>= \(e1, e2) ->
+    Ok (AApp e1 n0 , AApp e2 n1)
+-- Remove loose anotations
+dimSub c ((g1, AAnn a1 e1), (g2, e2)) n = dimSub c ((g1, e1), (g2, e2)) n
+dimSub c ((g1, e1), (g2, AAnn a1 e2)) n = dimSub c ((g1, e1), (g2, e2)) n
+dimSub c _ _ = Bad "LHS and RHS of path expression didn't match."
+
 {- The Type Checker -}
 data Ctx = Empty
          | Snoc Ctx ATerm
@@ -29,7 +110,11 @@ infer c g (AApp t t') = case infer c g (sdev t) of
   Bad y -> Bad y
   Ok (APi tp1 tp2) -> check c g (sdev t') tp1 >> Ok (sdev (sub t' 0 tp2))
   Ok _ -> Bad "Term is not a pi type."
-infer c g (ALAM t) = Bad "Cannot infer the type of an implicit lambda term."
+infer c g (ALAM (AAnn tp tpp))
+  = check c g (sub (AV 0) 0 tp) AStar >>
+    infer c (Snoc g (sub (AV 0) 0 tp)) tpp >>= \ it ->
+    Ok (AIPi (sub (AV 0) 0 tp) it)
+infer c g (ALAM t) = Bad "Cannot infer the type of an unannotated implicit lambda term."
 infer c g (AAppi (ALAM t) s) = infer c g (sub s 0 t) >>= Ok . sdev
 infer c g (AAppi t t') = case infer c g (sdev t) of
   Bad y -> Bad y
@@ -44,7 +129,6 @@ infer c g (ASnd t) = case infer c g (sdev t) of
   Bad y -> Bad y
   Ok (AIota tp1 tp2) -> Ok (sdev (sub (AFst t) 0 tp2))
   Ok _ -> Bad "Term is not an iota constructor (#2)."
-infer c g ABeta = Bad "Identity proofs cannot be inferred"
 infer c g (ARho t' tp t) = case infer c g (sdev t') of
   Bad y -> Bad y
   Ok (AId t1 t2) ->
@@ -54,6 +138,14 @@ infer c g (APi tp tpp) = check c g tp AStar >> check c (Snoc g tp) tpp AStar >> 
 infer c g (AIPi tp tpp) = check c g tp AStar >> check c (Snoc g tp) tpp AStar >> Ok AStar
 infer c g (AIota tp tpp) = check c g tp AStar >> check c (Snoc g tp) tpp AStar >> Ok AStar
 infer c g (AId x y) = Ok AStar
+infer c g AT0 = Ok AI
+infer c g AT1 = Ok AI
+infer c g AI = Ok AStar
+infer c g (APB a) = 
+  do 
+    (fs , sn) <- dimSub c ((g, sub AT0 0 a), (g, sub AT1 0 a)) 0
+    Ok $ AId fs sn
+infer c g (APApp a b) = Bad "Cannot infer the type of a naked path application."
 infer c g AStar = Ok AStar
 
 check :: TopCtx -> Ctx -> ATerm -> ATerm -> Err ()
@@ -126,15 +218,6 @@ check c g (ASnd t) tp = infer c g (ASnd (sdev t)) >>= \k ->
       if normalize [] etp == normalize [] ek
       then check c g tp AStar >> Ok ()
       else Bad "Failed to unify at iota elimination (#2)"
-check c g ABeta k = case ssdev c k of
-  Ok (AId t1 t2) ->
-    do
-      et1 <- erase c t1
-      et2 <- erase c t2
-      if normalize [] et1 == normalize [] et2
-      then Ok ()
-      else Bad "Lhs does not match rhs of identity"
-  _ -> Bad "Identity constructor must construct identity."
 check c g (ARho t' x t) tp = case infer c g (sdev t') of
   Bad s -> Bad s
   Ok (AId t1 t2) ->
@@ -155,5 +238,24 @@ check c g (AIota tp tpp) AStar = check c g (sdev tp) AStar >> check c (Snoc g (s
 check c g (AIota x tp) _ = Bad "Dependent intersections can only have AStar kind."
 check c g (AId x y) AStar = Ok ()
 check c g (AId x y) _ = Bad "Heterogenious equalities can only have AStar kind."
+check c g AT0 AI = Ok () 
+check c g AT0 _ = Bad "A0 can only have type AI."
+check c g AT1 AI = Ok () 
+check c g AT1 _ = Bad "A1 can only have type AI."
+check c g AI AStar = Ok () 
+check c g AI _ = Bad "AI can only have type *."
+check c g (APB a) k = case ssdev c k of
+  Ok (AId t1 t2) ->
+    do
+      (fs , sn) <- dimSub c ((g, sub AT0 0 a), (g, sub AT1 0 a)) 0
+      nfs <- normalize [] <$> erase c fs
+      nsn <- normalize [] <$> erase c sn
+      nt1 <- normalize [] <$> erase c t1
+      nt2 <- normalize [] <$> erase c t2
+      if nfs == nt1 && nsn == nt2
+      then Ok ()
+      else Bad "LHS and RHS of path don't match"
+  _ -> Bad "Identity path constructor must construct identity."
+check c g (APApp a b) _ = Bad "Cannot check the type of a naked path application."
 check c g AStar AStar = Ok () 
 check c g AStar _ = Bad "* can only have type *."

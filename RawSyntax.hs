@@ -27,12 +27,13 @@ data ITerm
    | IIPair ITerm ITerm
    | IFst ITerm
    | ISnd ITerm
-   | IBeta
    | IRho ITerm String ITerm ITerm
    | IPit String ITerm ITerm
    | IIPi String ITerm ITerm
    | IIota String ITerm ITerm
    | IId ITerm ITerm
+   | IPB String ITerm
+   | IPApp ITerm ITerm
    | IStar
    deriving (Show)
 
@@ -50,12 +51,13 @@ index s n (IAppi d d1) = IAppi (index s n d) (index s n d1)
 index s n (IIPair d d1) = IIPair (index s n d) (index s n d1)
 index s n (IFst d) = IFst (index s n d)
 index s n (ISnd d) = ISnd (index s n d)
-index s n IBeta = IBeta
 index s n (IRho d x tp d1) = IRho (index s n d) x (index s (1 + n) (index x 0 tp)) (index s n d1)
 index s n (IPit x d d1) = IPit x (index s n d) (index s (1 + n) (index x 0 d1))
 index s n (IIPi x d d1) = IIPi x (index s n d) (index s (1 + n) (index x 0 d1))
 index s n (IIota x d d1) = IIota x (index s n d) (index s (1 + n) (index x 0 d1))
 index s n (IId d x) = IId (index s n d) (index s n x)
+index s n (IPB x d) = IPB x (index s (1 + n) (index x 0 d))
+index s n (IPApp d d1) = IPApp (index s n d) (index s n d1)
 index s n IStar = IStar
 
 -- Convert intermediate syntax into abstract syntax
@@ -70,12 +72,13 @@ fromInter g (IAppi d d1) = AAppi <$> fromInter g d <*> fromInter g d1
 fromInter g (IIPair d d1) = AIPair <$> fromInter g d <*> fromInter g d1
 fromInter g (IFst d) = AFst <$> fromInter g d
 fromInter g (ISnd d) = ASnd <$> fromInter g d
-fromInter g IBeta = Ok ABeta
 fromInter g (IRho d x tp d1) = ARho <$> fromInter g d <*> fromInter g tp <*> fromInter g d1
 fromInter g (IPit x d d1) = APi <$> fromInter g d <*> fromInter g d1
 fromInter g (IIPi x d d1) = AIPi <$> fromInter g d <*> fromInter g d1
 fromInter g (IIota x d d1) = AIota <$> fromInter g d <*> fromInter g d1
 fromInter g (IId x y) = AId <$> fromInter g x <*> fromInter g y
+fromInter g (IPB x d) = APB <$> fromInter g d
+fromInter g (IPApp d d1) = APApp <$> fromInter g d <*> fromInter g d1
 fromInter g IStar = Ok AStar
 
 {- Convert concrete syntax into intermediate syntax -}
@@ -87,15 +90,19 @@ fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : []) o)
   = ILam e <$> (IAnn <$> fromCon t <*> fromCon o)
 fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : l) o)
   = ILam e <$> (IAnn <$> fromCon t <*> fromCon (SLam l o))
-fromCon (SLami (AIdent e : []) o) = ILAM e <$> fromCon o
-fromCon (SLami (AIdent e : l) o) = ILAM e <$> fromCon (SLami l o)
+fromCon (SLami (AOTele (AIdent e) : []) o) = ILAM e <$> fromCon o
+fromCon (SLami (AOTele (AIdent e) : l) o) = ILAM e <$> fromCon (SLami l o)
+fromCon (SLami (POTele (PTele (SVar (AIdent e)) t) : []) o)
+  = ILAM e <$> (IAnn <$> fromCon t <*> fromCon o)
+fromCon (SLami (POTele (PTele (SVar (AIdent e)) t) : l) o)
+  = ILAM e <$> (IAnn <$> fromCon t <*> fromCon (SLami l o))
 fromCon (SAppi a b) = IAppi <$> fromCon a <*> fromCon b
 fromCon (SApp a b) = IApp <$> fromCon a <*> fromCon b
+fromCon (SPApp a b) = IPApp <$> fromCon a <*> fromCon b
 fromCon (SRho (SVar (AIdent e)) t a b) =  IRho <$> fromCon a <*> Ok e <*> fromCon t <*> fromCon b
 fromCon (SFst a) = IFst <$> fromCon a
 fromCon (SSnd a) = ISnd <$> fromCon a
 fromCon (SPair a b) = IIPair <$> fromCon a <*> fromCon b
-fromCon SBeta = Ok IBeta
 fromCon (SVar (AIdent e)) = Ok $ IVS e
 fromCon (SFun a b) = IPit "" <$> fromCon a <*> fromCon b
 fromCon (SPi (PTele (SVar (AIdent e)) t : []) o) = IPit e <$> fromCon t <*> fromCon o
@@ -103,6 +110,9 @@ fromCon (SPi (PTele (SVar (AIdent e)) t : l) o) = IPit e <$> fromCon t <*> fromC
 fromCon (SIPi (ITele (SVar (AIdent e)) t : []) o) = IIPi e <$> fromCon t <*> fromCon o
 fromCon (SIPi (ITele (SVar (AIdent e)) t : l) o) = IIPi e <$> fromCon t <*> fromCon (SIPi l o)
 fromCon (SId a b) = IId <$> fromCon a <*> fromCon b
+fromCon (SPB (AIdent e : []) o) = IPB e <$> fromCon o
+fromCon (SPB (AIdent e : l) o) = IPB e <$> fromCon (SPB l o)
+
 fromCon (SIota (PTele (SVar (AIdent e)) t) b) = IIota e <$> fromCon t <*> fromCon b
 fromCon SU = Ok IStar
 fromCon _ = Bad "Parsing Error"

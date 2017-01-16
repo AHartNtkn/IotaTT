@@ -1,0 +1,10 @@
+module Interval where
+
+cInt : * = (X : *) -> (l : X) -> (r : X) -> l ~ r -> X
+
+cLeft : cInt = \ _ l _ _ . l
+
+cRight : cInt = \ _ _ r _ . r
+
+cSeg : cLeft ~ cRight = <x> \ X l r (p : l ~ r) . p @ x
+
