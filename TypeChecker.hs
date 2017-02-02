@@ -68,9 +68,9 @@ check c g (AV n) tp = case (g , n) of
       etp <- erase c tp
       ee  <- erase c (incFree x 0 1)
       if normalize [] etp == normalize [] ee
-      then check c (Snoc g (sdev x)) (sdev tp) AStar >> check c g (sdev x) AStar >> Ok ()
+      then check c (Snoc g (sdev x)) (sdev tp) AStar >> check c g (sdev x) AStar 
       else Bad "Term does not have correct type."
-  (Snoc g k , n) -> check c g (AV (n - 1)) (sub (AV 0) 0 tp) >> Ok ()
+  (Snoc g k , n) -> check c g (AV (n - 1)) (sub (AV 0) 0 tp) 
 check c g (AVS s) tp = 
   do
     ts <- errLookup s c
@@ -78,30 +78,30 @@ check c g (AVS s) tp =
     then Ok ()
     else Bad "Type didn't match durring name lookup."
 check c g (ALam t) k = case ssdev c k of
-  Ok (APi tp1 tp2) -> check c (Snoc g tp1) (sdev t) tp2 >> Ok ()
+  Ok (APi tp1 tp2) -> check c (Snoc g tp1) (sdev t) tp2 
   _ -> Bad "Lambdas can only be Pi types"
 check c (Snoc g tp1) (AAnn t1 t2) tp2 =
     if (normalize c t1 == normalize c (incFree tp1 0 1))
-    then check c (Snoc g tp1) (sdev t2) tp2 >> Ok ()
+    then check c (Snoc g tp1) (sdev t2) tp2 
     else Bad "Type annotation didn't match check."
-check c g (AApp (ALam t) s) tp = check c g (sub s 0 t) tp >> Ok ()
+check c g (AApp (ALam t) s) tp = check c g (sub s 0 t) tp 
 check c g (AApp t t1) tp = infer c g (sdev (AApp t t1)) >>= \k ->
     do
       etp <- erase c tp
       ek <- erase c k
       if normalize [] etp == normalize [] ek
-      then check c g tp AStar >> Ok ()
+      then check c g tp AStar 
       else Bad "Failed to unify at application"
 check c g (ALAM t) k = case ssdev c k of
-  Ok (AIPi tp1 tp2) -> check c (Snoc g tp1) (sdev t) tp2 >> Ok ()
+  Ok (AIPi tp1 tp2) -> check c (Snoc g tp1) (sdev t) tp2 
   _ -> Bad "Implicit lambdas must be implicit products."
-check c g (AAppi (ALAM t) s) tp = check c g (sub s 0 t) tp >> Ok ()
+check c g (AAppi (ALAM t) s) tp = check c g (sub s 0 t) tp 
 check c g (AAppi t t1) tp = infer c g (sdev (AAppi t t1)) >>= \ k ->
     do
       etp <- erase c tp
       ek <- erase c k
       if normalize [] etp == normalize [] ek
-      then check c g tp AStar >> Ok ()
+      then check c g tp AStar 
       else Bad "Failed to unify at implicit application"
 check c g (AIPair t1 t2) k = case ssdev c k of
   Ok (AIota tp1 tp2) ->
@@ -109,7 +109,7 @@ check c g (AIPair t1 t2) k = case ssdev c k of
       et1 <- erase c t1
       et2 <- erase c t2
       if normalize [] et1 == normalize [] et2
-      then check c g (sdev t1) tp1 >> check c g (sdev t2) (sub (sdev t1) 0 tp2) >> Ok ()
+      then check c g (sdev t1) tp1 >> check c g (sdev t2) (sub (sdev t1) 0 tp2) 
       else Bad "Iota constructor does not erase properly."
   _ -> Bad "Iota contructor must be a dependent intersection."
 check c g (AFst t) tp = infer c g (AFst (sdev t)) >>= \k ->
@@ -117,14 +117,14 @@ check c g (AFst t) tp = infer c g (AFst (sdev t)) >>= \k ->
       etp <- erase c tp
       ek <- erase c k
       if normalize [] etp == normalize [] ek
-      then check c g tp AStar >> Ok ()
+      then check c g tp AStar 
       else Bad "Failed to unify at iota elimination (#1)"
 check c g (ASnd t) tp = infer c g (ASnd (sdev t)) >>= \k ->
     do
       etp <- erase c tp
       ek <- erase c k
       if normalize [] etp == normalize [] ek
-      then check c g tp AStar >> Ok ()
+      then check c g tp AStar 
       else Bad "Failed to unify at iota elimination (#2)"
 check c g ABeta k = case ssdev c k of
   Ok (AId t1 t2) ->
@@ -144,14 +144,14 @@ check c g (ARho t' x t) tp = case infer c g (sdev t') of
       ntp <- normalize [] etp
       nt2 <- normalize [] et2
       if ntp == nt2
-      then check c g tp AStar >> check c g (sdev t) (sub t1 0 x) >> Ok ()
+      then check c g tp AStar >> check c g (sdev t) (sub t1 0 x) 
       else Bad "LHS and RHS of identity don't match after erasure"
   Ok _ -> Bad "Term is not an identity durring term checking"
-check c g (APi tp tp1) AStar = check c g tp AStar >> check c (Snoc g tp) tp1 AStar >> Ok ()
+check c g (APi tp tp1) AStar = check c g tp AStar >> check c (Snoc g tp) tp1 AStar 
 check c g (APi tp tp1) _ = Bad "Pi types can only have AStar kind."
-check c g (AIPi tp tpp) AStar = check c g (sdev tp) AStar >> check c (Snoc g (sdev tp)) (sdev tpp) AStar >> Ok ()
+check c g (AIPi tp tpp) AStar = check c g (sdev tp) AStar >> check c (Snoc g (sdev tp)) (sdev tpp) AStar 
 check c g (AIPi x tp) _ = Bad "Implicit products can only have AStar kind."
-check c g (AIota tp tpp) AStar = check c g (sdev tp) AStar >> check c (Snoc g (sdev tp)) (sdev tpp) AStar >> Ok ()
+check c g (AIota tp tpp) AStar = check c g (sdev tp) AStar >> check c (Snoc g (sdev tp)) (sdev tpp) AStar 
 check c g (AIota x tp) _ = Bad "Dependent intersections can only have AStar kind."
 check c g (AId x y) AStar = Ok ()
 check c g (AId x y) _ = Bad "Heterogenious equalities can only have AStar kind."

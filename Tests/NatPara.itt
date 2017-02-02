@@ -1,0 +1,53 @@
+module NatPara where
+
+import Nat
+
+p1Nat : *
+ = i(n : cNat) .
+    {X : *} -> (XR : X -> *) ->
+    {sX : X -> X} -> ({b : X} -> XR b -> XR (sX b)) ->
+    {zX : X} -> XR zX ->
+    XR (n X sX zX)
+
+p1Z : p1Nat
+  = [ cZ | / X . \ XR . / sX . \ s . / zX . \ z . z ]
+
+p1S : p1Nat -> p1Nat
+  = \ n . [ cS n.1 | / X . \ XR . / sX . \ s . / zX . \ z . s -(n.1 X sX zX) (n.2 -X XR -sX s -zX z) ]
+
+NatParametricity1 :
+  (X : *) (XR : X -> *) ->
+  (sX : X -> X) -> ({b : X} -> XR b -> XR (sX b)) ->
+  (zX : X) -> XR zX ->
+  (n : Nat) -> XR (n.1 X sX zX)
+ = \ X XR sX s zX .
+     NatInd
+       (\ n . XR (n.1 X sX zX))
+       (/ x . \ XRx1 . s -(x.1 X sX zX) XRx1)
+
+p2Nat : *
+ = i(n : cNat) .
+    {X1 : *} {X2 : *} -> (XR : X1 -> X2 -> *) ->
+    {sX1 : X1 -> X1} {sX2 : X2 -> X2} -> 
+    ({b1 : X1} {b2 : X2} -> XR b1 b2 -> XR (sX1 b1) (sX2 b2)) ->
+    {zX1 : X1} {zX2 : X2} -> XR zX1 zX2 ->
+    XR (n X1 sX1 zX1) (n X2 sX2 zX2)
+
+p2Z : p2Nat
+  = [ cZ | / X1 X2 . \ XR . / sX1 sX2 . \ s . / zX1 zX2 . \ z . z ]
+
+p2S : p2Nat -> p2Nat
+  = \ n . [ cS n.1 |
+            / X1 X2 . \ XR . / sX1 sX2 . \ s . / zX1 zX2 . \ z .
+              s -(n.1 X1 sX1 zX1) -(n.1 X2 sX2 zX2) (n.2 -X1 -X2 XR -sX1 -sX2 s -zX1 -zX2 z) ]
+
+NatParametricity2 :
+  (X1 : *) (X2 : *) -> (XR : X1 -> X2 -> *) ->
+  (sX1 : X1 -> X1) (sX2 : X2 -> X2) -> 
+  ({b1 : X1} {b2 : X2} -> XR b1 b2 -> XR (sX1 b1) (sX2 b2)) ->
+  (zX1 : X1) (zX2 : X2) -> XR zX1 zX2 ->
+  (n : Nat) -> XR (n.1 X1 sX1 zX1) (n.1 X2 sX2 zX2)
+ = \ X1 X2 XR sX1 sX2 s zX1 zX2 .
+     NatInd
+       (\ n . XR (n.1 X1 sX1 zX1) (n.1 X2 sX2 zX2))
+       (/ x . \ XRx1 . s -(x.1 X1 sX1 zX1) -(x.1 X2 sX2 zX2) XRx1)

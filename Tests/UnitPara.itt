@@ -1,0 +1,33 @@
+module UnitPara where
+
+import Unit
+
+p1Unit : *
+ = i(u : cUnit) . {X : *} -> (XR : X -> *) -> {b : X} -> XR b -> XR (u X b)
+
+p1tt : p1Unit
+   = [ ctt | / X . \ XR . / b . \ XRb . XRb ]
+
+test : (X : *) (b : X) -> tt.1 X b ~ b
+  = \ X b . B
+
+UnitParametricity1 : (X : *) (XR : X -> *) (b : X) -> XR b -> (u : Unit) -> XR (u.1 X b)
+  = \ X XR b . UnitInd (\ u . XR (u.1 X b))
+
+p2Unit : *
+ = i(u : cUnit) .
+    {X1 : *} {X2 : *} ->
+    (XR : X1 -> X2 -> *) ->
+    {b1 : X1} {b2 : X2} ->
+    (XR b1 b2) -> XR (u X1 b1) (u X2 b2)
+
+p2tt : p2Unit
+   = [ ctt | / X1 X2 . \ XR . / b1 b2 . \ XRb . XRb ]
+
+UnitParametricity2 :
+  (X1 : *) (X2 : *)
+  (XR : X1 -> X2 -> *)
+  (b1 : X1) (b2 : X2) ->
+  XR b1 b2 ->
+  (u : Unit) -> XR (u.1 X1 b1) (u.1 X2 b2)
+  = \ X1 X2 XR b1 b2 . UnitInd (\ u . XR (u.1 X1 b1) (u.1 X2 b2))
