@@ -43,3 +43,20 @@ times : Nat -> Nat -> Nat
             (\ m . Z)
 
 timesTest : times eight two ~ times four four = B
+
+sub : Nat -> Nat
+  = \ n . CoprodElim (n ~ Z) (Sigma Nat (\ m . n ~ S m))
+                     (\ c . Nat) (\_ . Z) (\ p . fst Nat (\ m . n ~ S m) p) (natSplit n)
+
+subTest : sub three ~ two = B
+
+sub2 : Nat -> Nat = NatInd (\ n . Nat) (/ n . \ re . n) Z
+
+sub2Test : sub2 three ~ two = B
+
+{- How to prove these?
+sub2Lem : (n : Nat) -> sub2 (S n) ~ n = \ n . B
+
+subEq : (n : Nat) -> sub n ~ sub2 n
+  =  NatInd (\ n . sub n ~ sub2 n) (/ n . \ re . re) B
+-}

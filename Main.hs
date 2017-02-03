@@ -78,7 +78,7 @@ evaluateInput :: TopCtx -> String -> Err Term
 evaluateInput ctx input =
   -- process user input into an expression
   (pExp . resolveLayout True . myLexer) input >>=
-  convert ctx >>= erase ctx >>= normalize []
+  convert ctx >>= normalize ctx >>= erase ctx
 
 -- When needed, print contents of an Error
 errIO :: Err Term -> IO ()

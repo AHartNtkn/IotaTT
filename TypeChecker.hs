@@ -21,7 +21,7 @@ infer c g (ALam (AAnn tp tpp))
     Ok (APi (sub (AV 0) 0 tp) it)
 infer c g (ALam t) = Bad "Cannot infer the type of an unannotated lambda term."
 infer c (Snoc g tp1) (AAnn t1 t2) =
-  if (normalize c t1 == normalize c (incFree tp1 0 1))
+  if normalize c t1 == normalize c (incFree tp1 0 1)
   then infer c (Snoc g tp1) (sdev t2)
   else Bad "Type annotation didn't match durring inference."
 infer c g (AApp (ALam t) s) = infer c g (sub s 0 t) >>= Ok . sdev
@@ -38,12 +38,20 @@ infer c g (AAppi t t') = case infer c g (sdev t) of
 infer c g (AIPair t t') = Bad "Cannot infer the type of an iota constructor."
 infer c g (AFst t) = case infer c g (sdev t) of
   Bad y -> Bad y
-  Ok (AIota tp1 tp2) -> Ok (sdev tp1)
-  Ok _ -> Bad "Term is not an iota constructor (#1)."
+  Ok i ->
+    do
+      is <- ssdev c i
+      case is of 
+        AIota tp1 tp2 -> Ok (sdev tp1)
+        _ -> Bad "Term is not an iota constructor (#1)."
 infer c g (ASnd t) = case infer c g (sdev t) of
   Bad y -> Bad y
-  Ok (AIota tp1 tp2) -> Ok (sdev (sub (AFst t) 0 tp2))
-  Ok _ -> Bad "Term is not an iota constructor (#2)."
+  Ok i ->
+    do
+      is <- ssdev c i
+      case is of 
+        AIota tp1 tp2 -> Ok (sdev (sub (AFst t) 0 tp2))
+        _ -> Bad "Term is not an iota constructor (#2)."
 infer c g ABeta = Bad "Identity proofs cannot be inferred"
 infer c g (ARho t' tp t) = case infer c g (sdev t') of
   Bad y -> Bad y
@@ -63,18 +71,13 @@ check c g k (AVS s) =
     check c g k (fst ty)
 check c g (AV n) tp = case (g , n) of 
   (Empty , _) -> Bad "Cannot check type of variable term in an empty context."
-  (Snoc g x , 0) -> 
-    do
-      etp <- erase c tp
-      ee  <- erase c (incFree x 0 1)
-      if normalize [] etp == normalize [] ee
-      then check c (Snoc g (sdev x)) (sdev tp) AStar >> check c g (sdev x) AStar 
-      else Bad "Term does not have correct type."
+  (Snoc g x , 0) ->
+    if (normalize c tp >>= erase c) == (normalize c (incFree x 0 1) >>= erase c)
+    then check c (Snoc g (sdev x)) (sdev tp) AStar >> check c g (sdev x) AStar 
+    else Bad "Term does not have correct type."
   (Snoc g k , n) -> check c g (AV (n - 1)) (sub (AV 0) 0 tp) 
-check c g (AVS s) tp = 
-  do
-    ts <- errLookup s c
-    if normalize c (snd ts) == normalize c tp
+check c g (AVS s) tp =
+    if (errLookup s c >>= normalize c . snd) == normalize c tp
     then Ok ()
     else Bad "Type didn't match durring name lookup."
 check c g (ALam t) k = case ssdev c k of
@@ -86,66 +89,43 @@ check c (Snoc g tp1) (AAnn t1 t2) tp2 =
     else Bad "Type annotation didn't match check."
 check c g (AApp (ALam t) s) tp = check c g (sub s 0 t) tp 
 check c g (AApp t t1) tp = infer c g (sdev (AApp t t1)) >>= \k ->
-    do
-      etp <- erase c tp
-      ek <- erase c k
-      if normalize [] etp == normalize [] ek
-      then check c g tp AStar 
-      else Bad "Failed to unify at application"
+    if (normalize c tp >>= erase c) == (normalize c k >>= erase c)
+    then check c g tp AStar 
+    else Bad "Failed to unify at application"
 check c g (ALAM t) k = case ssdev c k of
   Ok (AIPi tp1 tp2) -> check c (Snoc g tp1) (sdev t) tp2 
   _ -> Bad "Implicit lambdas must be implicit products."
 check c g (AAppi (ALAM t) s) tp = check c g (sub s 0 t) tp 
 check c g (AAppi t t1) tp = infer c g (sdev (AAppi t t1)) >>= \ k ->
-    do
-      etp <- erase c tp
-      ek <- erase c k
-      if normalize [] etp == normalize [] ek
-      then check c g tp AStar 
-      else Bad "Failed to unify at implicit application"
+    if (normalize c tp >>= erase c) == (normalize c k >>= erase c)
+    then check c g tp AStar 
+    else Bad "Failed to unify at implicit application"
 check c g (AIPair t1 t2) k = case ssdev c k of
   Ok (AIota tp1 tp2) ->
-    do
-      et1 <- erase c t1
-      et2 <- erase c t2
-      if normalize [] et1 == normalize [] et2
-      then check c g (sdev t1) tp1 >> check c g (sdev t2) (sub (sdev t1) 0 tp2) 
-      else Bad "Iota constructor does not erase properly."
+    if (normalize c t1 >>= erase c) == (normalize c t2 >>= erase c)
+    then check c g (sdev t1) tp1 >> check c g (sdev t2) (sub (sdev t1) 0 tp2) 
+    else Bad "Iota constructor does not erase properly."
   _ -> Bad "Iota contructor must be a dependent intersection."
 check c g (AFst t) tp = infer c g (AFst (sdev t)) >>= \k ->
-    do
-      etp <- erase c tp
-      ek <- erase c k
-      if normalize [] etp == normalize [] ek
-      then check c g tp AStar 
-      else Bad "Failed to unify at iota elimination (#1)"
+    if (normalize c tp >>= erase c) == (normalize c k >>= erase c)
+    then check c g tp AStar 
+    else Bad "Failed to unify at iota elimination (#1)"
 check c g (ASnd t) tp = infer c g (ASnd (sdev t)) >>= \k ->
-    do
-      etp <- erase c tp
-      ek <- erase c k
-      if normalize [] etp == normalize [] ek
-      then check c g tp AStar 
-      else Bad "Failed to unify at iota elimination (#2)"
+    if (normalize c tp >>= erase c) == (normalize c k >>= erase c)
+    then check c g tp AStar 
+    else Bad "Failed to unify at iota elimination (#2)"
 check c g ABeta k = case ssdev c k of
   Ok (AId t1 t2) ->
-    do
-      et1 <- erase c t1
-      et2 <- erase c t2
-      if normalize [] et1 == normalize [] et2
-      then Ok ()
-      else Bad "Lhs does not match rhs of identity"
+    if (normalize c t1 >>= erase c) == (normalize c t2 >>= erase c)
+    then Ok ()
+    else Bad "Lhs does not match rhs of identity"
   _ -> Bad "Identity constructor must construct identity."
 check c g (ARho t' x t) tp = case infer c g (sdev t') of
   Bad s -> Bad s
   Ok (AId t1 t2) ->
-    do
-      etp <- erase c tp
-      et2 <- erase c (sub t2 0 x)
-      ntp <- normalize [] etp
-      nt2 <- normalize [] et2
-      if ntp == nt2
-      then check c g tp AStar >> check c g (sdev t) (sub t1 0 x) 
-      else Bad "LHS and RHS of identity don't match after erasure"
+    if (normalize c tp >>= erase c) == (normalize c (sub t2 0 x) >>= erase c)
+    then check c g tp AStar >> check c g (sdev t) (sub t1 0 x) 
+    else Bad "LHS and RHS of identity don't match after erasure"
   Ok _ -> Bad "Term is not an identity durring term checking"
 check c g (APi tp tp1) AStar = check c g tp AStar >> check c (Snoc g tp) tp1 AStar 
 check c g (APi tp tp1) _ = Bad "Pi types can only have AStar kind."
