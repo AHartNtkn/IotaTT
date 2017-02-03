@@ -17,15 +17,18 @@ parenA i a@(AIPi _ _) = "(" ++ printA i a ++ ")"
 parenA i a@(AIota _ _) = "(" ++ printA i a ++ ")"
 parenA i a@(AId _ _) = "(" ++ printA i a ++ ")"
 parenA i a@(AAnn _ _) = "(" ++ printA i a ++ ")"
+parenA i a@(ALam _) = "(" ++ printA i a ++ ")"
+parenA i a@(ALAM _) = "(" ++ printA i a ++ ")"
 parenA i a = printA i a
 
 printA :: Int -> ATerm -> String
+printA i (AVS s) = s
 printA i (AV n) = char (i - n - 1)
 printA i (AAnn a b) = printA i a ++ " : " ++ parenA i b
 printA i (AApp a b) = printA i a ++ " " ++ parenA i b
 printA i (AAppi a b) = printA i a ++ " - " ++ parenA i b
-printA i (ALam a) = "\\" ++ char i ++ " -> " ++ printA (1 + i) a
-printA i (ALAM a) = "/" ++ char i ++ " -> " ++ printA (1 + i) a
+printA i (ALam a) = "\\" ++ char i ++ " . " ++ printA (1 + i) a
+printA i (ALAM a) = "/" ++ char i ++ " . " ++ printA (1 + i) a
 printA i (AIPair a b) = "[" ++ printA i a ++ " | " ++ printA i b ++ "]"
 printA i (AFst a) = parenA i a ++ ".1"
 printA i (ASnd a) = parenA i a ++ ".2"
@@ -44,18 +47,21 @@ parenD :: Int -> Term -> String
 parenD i a@(App _ _) = "(" ++ printD i a ++ ")"
 parenD i a@(Pi _ _) = "(" ++ printD i a ++ ")"
 parenD i a@(IPi _ _) = "(" ++ printD i a ++ ")"
+parenD i a@(Lam _) = "(" ++ printD i a ++ ")"
+parenD i a@(Iota _ _) = "(" ++ printD i a ++ ")"
 parenD i a = printD i a
 
 printD :: Int -> Term -> String
 printD i (V n) = char (i - n - 1)
 printD i (App a b) = printD i a ++ " " ++ parenD i b
-printD i (Lam a) = "\\" ++ char i ++ " -> " ++ printD (1 + i) a
+printD i (Lam a) = "\\" ++ char i ++ " . " ++ printD (1 + i) a
 printD i (Pi a b) =
   if freeIn b 0
   then "(" ++ char i ++ " : " ++ printD i a ++ ") -> " ++ printD (1 + i) b
   else parenD i a ++ " -> " ++ printD (1 + i) b
 printD i (IPi a b) = "{" ++ char i ++ " : " ++ printD i a ++ "} -> " ++ printD (1 + i) b
 printD i (Id a b) = printD i a ++ " ~ " ++ printD i b
+printD i (Iota a b) = "i(" ++ char i ++ " : " ++ printD i a ++ ") . " ++ printD (1 + i) b 
 printD i Star = "*"
 
 instance Show Term where 

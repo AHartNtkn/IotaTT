@@ -74,16 +74,20 @@ prCtx ((s , v):vs) = s ++ " : " ++ show v ++ "\n" ++ prCtx vs
 
 -- Evaluate expression from user input
 -- NOTE: pExp :: [Token] -> Err Exp
-evaluateInput :: TopCtx -> String -> Err Term
+evaluateInput :: TopCtx -> String -> Err ATerm
 evaluateInput ctx input =
   -- process user input into an expression
   (pExp . resolveLayout True . myLexer) input >>=
-  convert ctx >>= normalize ctx >>= erase ctx
+  convert ctx >>= normalize ctx
 
 -- When needed, print contents of an Error
-errIO :: Err Term -> IO ()
+errIO :: Err ATerm -> IO ()
 errIO (Bad s) = putStrLn s
-errIO (Ok a)  = putStrLn $ show a
+errIO (Ok a)  = putStrLn $ printA 0 a
+
+errIOE :: Err Term -> IO ()
+errIOE (Bad s) = putStrLn s
+errIOE (Ok a)  = putStrLn $ printD 0 a
 
 errIOT :: Err ATerm -> IO ()
 errIOT (Bad s) = putStrLn s
@@ -97,6 +101,8 @@ mainLoop s ctx =
     ":q"   -> return "Goodbye!" -- Quit with ":q"
     ":con" -> putStrLn (prCtx ctx) >> mainLoop s ctx -- print everything in the current context
     ":h"   -> putStrLn (
+                 "<Expression> - Evaluate an expression.\n"++
+                 ":e <Expression> - Evaluate then erase an expression.\n"++
                  ":h - Help (list of commands)\n"++
                  ":con - Print current context\n"++
                  ":q - Quit\n:r - Reload file\n"++
@@ -104,11 +110,12 @@ mainLoop s ctx =
            ) >> mainLoop s ctx -- help command
     ":r"   -> fileToCtx [] s >>= mainLoop s
     ':':'t':' ':l ->
-      errIOT (
+      errIO (
         (pExp . resolveLayout True . myLexer) l >>=
         convert ctx >>=
         infer ctx Empty) >>
       mainLoop s ctx
+    ':':'e':' ':l -> errIOE (evaluateInput ctx l >>= erase ctx) >> mainLoop s ctx
     _      -> errIO (evaluateInput ctx input) >> mainLoop s ctx -- Loop back with same context
 
 -- Main program
