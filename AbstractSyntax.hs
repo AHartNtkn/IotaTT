@@ -2,7 +2,7 @@
 
 module AbstractSyntax where
 
-import ErrM
+import Exp.ErrM
 
 errLookup :: (Show a, Eq a) => a -> [(a, b)] -> Err b
 errLookup a l = (\case { Nothing -> Bad ("Failed to locate "++ show a++".") ; Just k -> Ok k}) (lookup a l)

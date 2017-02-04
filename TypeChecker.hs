@@ -2,7 +2,7 @@
 
 module TypeChecker where
 
-import ErrM
+import Exp.ErrM
 import AbstractSyntax
 
 {- The Type Checker -}

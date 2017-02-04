@@ -2,7 +2,7 @@ module PrettyPrinting where
 
 import Data.Char
 
-import ErrM
+import Exp.ErrM
 import AbstractSyntax
 
 char :: Int -> String

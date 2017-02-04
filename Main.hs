@@ -2,13 +2,12 @@
 
 module Main where
 
-import AbsExp
-import ParExp
-import LexExp
-import SkelExp
-import PrintExp
-import LayoutExp
-import ErrM
+import Exp.Lex
+import Exp.Par
+import Exp.Print
+import Exp.Abs
+import Exp.Layout
+import Exp.ErrM
 
 import System.IO
 import Control.Monad

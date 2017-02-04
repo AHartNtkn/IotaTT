@@ -6,8 +6,8 @@ import AbstractSyntax
 import PrettyPrinting
 
 -- Representation for printing
-import AbsExp
-import ErrM
+import Exp.Abs
+import Exp.ErrM
 
 import Control.Monad
 import Data.String

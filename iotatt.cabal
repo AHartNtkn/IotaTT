@@ -1,0 +1,36 @@
+name:                iotatt
+version:             1.0
+synopsis:            Prototype implementation of a PTS capable of deriving induction.
+description:         Prototype implementation of a PTS capable of deriving induction.
+author:              Anthony Hart
+maintainer:
+-- copyright:
+category:            Language
+build-type:          Custom
+extra-source-files:  Makefile, README.md, Exp.cf, examples/*.itt
+cabal-version:       >=1.10
+
+executable iotatt
+  main-is:             Main.hs
+  other-modules:
+    PrettyPrinting,
+    TypeChecker,
+    AbstractSyntax,
+    RawSyntax,
+    Exp.Abs,
+    Exp.ErrM,
+    Exp.Layout,
+    Exp.Lex,
+    Exp.Par,
+    Exp.Print,
+    Exp.Skel,
+    Exp.Test
+  other-extensions:
+    LambdaCase
+  build-depends:
+    base,
+    unordered-containers,
+    array
+  -- hs-source-dirs:
+  build-tools:         alex, happy, bnfc
+  default-language:    Haskell2010

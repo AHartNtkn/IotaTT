@@ -75,14 +75,10 @@ type-form, not in anything else. Additionally, reflexive proofs are denoted
 Install
 -------
 
-At some point, a proper Cabal makefile should be made, but
-for now, do the following;
 
-* Make sure you have bnfc, happy, and alex (You can get this with Cabal)
-* run `bnfc -m -haskell Exp.cf`
-* run alex and happy on the generated .x and .y files, respectively
-* compile Main.hs
-* load a file with something like `Main.exe Nat.itt`
+* Navigate to directory and run `cabal install`
+* The `iotatt.exe` will apear in `.\dist\build\iotatt\`
+* Load a program with `iotatt.exe Nat.itt`
 
 References
 --------------------
