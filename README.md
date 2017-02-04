@@ -20,7 +20,7 @@ module Nat where
 After that, a declaration of the form `<NAME> : <TYPE> = <TERM>`
 can be declared;
 ```
-cNat : * = (a : *) (a -> a) -> a -> a
+cNat : * = (a : *) -> (a -> a) -> a -> a
 
 cZ : cNat = \ a s z . z
 ```
