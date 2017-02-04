@@ -77,7 +77,7 @@ Install
 
 
 * Navigate to directory and run `cabal install`
-* The `iotatt.exe` will apear in `.\dist\build\iotatt\`
+* The `iotatt.exe` will appear in `.\dist\build\iotatt\`
 * Load a program with `iotatt.exe Nat.itt`
 
 References
