@@ -5,7 +5,7 @@ import Exp.ErrM
 errLookup :: (Show a, Eq a) => a -> [(a, b)] -> Err b
 errLookup a l =
   case lookup a l of
-    Nothing -> Bad $ "Failed to locate "++ show a++"."
+    Nothing -> Bad $ "Failed to locate "++ show a ++"."
     Just k -> Ok k
 
 {- Unannotated Terms -}
@@ -20,26 +20,26 @@ data Term
   | Star
   deriving (Eq)
 
-{- Annotated Types -}
+{- Annotated Terms -}
 data ATerm
-         = AV Int
-         | AVS String
-         | ALam ATerm
-         | AAnn ATerm ATerm
-         | AApp ATerm ATerm
-         | ALAM ATerm
-         | AAppi ATerm ATerm
-         | AIPair ATerm ATerm
-         | AFst ATerm
-         | ASnd ATerm
-         | ABeta
-         | ARho ATerm ATerm ATerm
-         | APi ATerm ATerm
-         | AIPi ATerm ATerm
-         | AIota ATerm ATerm
-         | AId ATerm ATerm
-         | AStar
-         deriving (Eq , Show)
+  = AV Int
+  | AVS String
+  | ALam ATerm
+  | AAnn ATerm ATerm
+  | AApp ATerm ATerm
+  | ALAM ATerm
+  | AAppi ATerm ATerm
+  | AIPair ATerm ATerm
+  | AFst ATerm
+  | ASnd ATerm
+  | ABeta
+  | ARho ATerm ATerm ATerm
+  | APi ATerm ATerm
+  | AIPi ATerm ATerm
+  | AIota ATerm ATerm
+  | AId ATerm ATerm
+  | AStar
+  deriving (Eq , Show)
 
 {- The context used by the interpreter -}
 type TopCtx = [(String, (ATerm, ATerm))]
@@ -61,7 +61,7 @@ freeIn (APi t tp)    n = freeIn t n || freeIn tp (1 + n)
 freeIn (AIPi t tp)   n = freeIn t n || freeIn tp (1 + n)
 freeIn (AIota t tp)  n = freeIn t n || freeIn tp (1 + n)
 freeIn (AId x y)     n = freeIn x n || freeIn y n
-freeIn AStar n = False
+freeIn AStar         n = False
 
 -- Increment free variables
 increaseFree (AV x)       n i = if x >= n then AV (i + x) else AV x
@@ -80,7 +80,7 @@ increaseFree (APi t tp)   n i = APi    (increaseFree t n i) (increaseFree tp (1 
 increaseFree (AIPi t tp)  n i = AIPi   (increaseFree t n i) (increaseFree tp (1 + n) i)
 increaseFree (AIota t tp) n i = AIota  (increaseFree t n i) (increaseFree tp (1 + n) i)
 increaseFree (AId x y)    n i = AId    (increaseFree x n i) (increaseFree y n i)
-increaseFree AStar n i = AStar
+increaseFree AStar        n i = AStar
 
 incFree s = increaseFree s 0 1
 
@@ -90,7 +90,7 @@ sub s n (AV x) =
         then s
         else AV (x - 1))
   else AV x
-sub _ _ (AVS s) = AVS s
+sub _ _ (AVS s)       = AVS s
 sub s n (ALam d)      = ALam (sub (incFree s) (1 + n) d)
 sub s n (AAnn d b)    = AAnn (sub s n d) (sub s n b)
 sub s n (AApp d b)    = AApp (sub s n d) (sub s n b)
@@ -105,7 +105,7 @@ sub s n (APi t tp)    = APi (sub s n t) (sub (incFree s) (1 + n) tp)
 sub s n (AIPi t tp)   = AIPi (sub s n t) (sub (incFree s) (1 + n) tp)
 sub s n (AIota t tp)  = AIota (sub s n t) (sub (incFree s) (1 + n) tp)
 sub s n (AId x y)     = AId (sub s n x) (sub s n y)
-sub s n AStar = AStar
+sub s n AStar         = AStar
 
 -- Weak Head Normal Form
 whnf' :: Bool -> TopCtx -> ATerm -> Err ATerm
@@ -217,4 +217,4 @@ erase c (APi t t1)    = Pi <$> erase c t <*> erase c t1
 erase c (AIPi t t1)   = IPi <$> erase c t <*> erase c t1
 erase c (AIota t t1)  = Iota <$> erase c t <*> erase c t1
 erase c (AId x x1)    = Id <$> erase c x <*> erase c x1
-erase c AStar = Ok Star
+erase c AStar         = Ok Star

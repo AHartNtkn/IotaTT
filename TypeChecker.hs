@@ -66,9 +66,6 @@ infer c g tr =
     Ok AStar -> Ok AStar
 
 check :: TopCtx -> Ctx -> ATerm -> ATerm -> Err ()
-check c g tr (AVS s) =
-  do ty <- fst <$> errLookup s c
-     check c g tr ty
 check c g tr ty =
   case tr of
     AVS s ->
