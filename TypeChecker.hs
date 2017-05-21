@@ -70,13 +70,13 @@ check c g tr (AVS s) =
   do ty <- fst <$> errLookup s c
      check c g tr ty
 check c g tr ty =
-  case whnf c tr of
-    Ok (AVS s) ->
+  case tr of
+    AVS s ->
       do cty <- snd <$> errLookup s c
          if nf c cty == nf c ty
          then Ok ()
          else Bad "Type didn't match durring lookup."
-    Ok (AV n) ->
+    AV n ->
       case (g , n) of
         (Empty , _) -> Bad "Cannot check type of variable term in an empty context."
         (Snoc g x , 0) ->
@@ -84,56 +84,56 @@ check c g tr ty =
           then check c (Snoc g x) ty AStar >> check c g x AStar
           else Bad "Term does not have correct type."
         (Snoc g _ , n) -> check c g (AV (n - 1)) (sub (AV 0) 0 ty)
-    Ok (ALam tr) ->
+    ALam tr ->
       case nwhnf c ty of
         Ok (APi ty1 ty2) -> check c (Snoc g ty1) tr ty2
         _ -> Bad "Lambdas can only be Pi types."
-    Ok (AAnn aty tr) ->
+    AAnn aty tr ->
       case g of
         Snoc g cty ->
           if nf c aty == nf c (incFree cty)
           then check c (Snoc g cty) tr ty
           else Bad "Type annotation didn'tr match check."
         _ -> Bad "Annotation appeared without being added to local context."
-    Ok (AApp tr1 tr2) ->
+    AApp tr1 tr2 ->
       do ity <- infer c g (AApp tr1 tr2)
          if (nf c ty >>= erase c) == (nf c ity >>= erase c)
          then check c g ty AStar
          else Bad "Failed to unify at application."
-    Ok (ALAM tr) ->
+    ALAM tr ->
       case nwhnf c ty of
         Ok (AIPi ty1 ty2) -> check c (Snoc g ty1) tr ty2
         _ -> Bad "Implicit lambdas must be implicit products."
-    Ok (AAppi tr1 tr2) ->
+    AAppi tr1 tr2 ->
       do ity <- infer c g (AAppi tr1 tr2)
          if (nf c ty >>= erase c) == (nf c ity >>= erase c)
          then check c g ty AStar
          else Bad "Failed to unify at implicit application."
-    Ok (AIPair t1 t2) ->
+    AIPair t1 t2 ->
       case nwhnf c ty of
         Ok (AIota tp1 tp2) ->
           if (nf c t1 >>= erase c) == (nf c t2 >>= erase c)
           then check c g t1 tp1 >> check c g t2 (sub t1 0 tp2)
           else Bad "Iota constructor does not erase properly."
         _ -> Bad "Iota contructor must be a dependent intersection."
-    Ok (AFst tr) ->
+    AFst tr ->
       do ity <- infer c g (AFst tr)
          if (nf c ty >>= erase c) == (nf c ity >>= erase c)
          then check c g ty AStar
          else Bad "Failed to unify at iota elimination. (#1)"
-    Ok (ASnd tr) ->
+    ASnd tr ->
       do ity <- infer c g (ASnd tr)
          if (nf c ty >>= erase c) == (nf c ity >>= erase c)
          then check c g ty AStar
          else Bad "Failed to unify at iota elimination. (#2)"
-    Ok ABeta ->
+    ABeta ->
       case nwhnf c ty of
         Ok (AId t1 t2) ->
           if (nf c t1 >>= erase c) == (nf c t2 >>= erase c)
           then Ok ()
           else Bad "Lhs does not match rhs of identity."
         _ -> Bad "Identity constructor must construct identity."
-    Ok (ARho tr1 x tr2) ->
+    ARho tr1 x tr2 ->
       case infer c g tr1 >>= nwhnf c of
         Bad s -> Bad s
         Ok (AId t1 t2) ->
@@ -141,23 +141,23 @@ check c g tr ty =
           then check c g ty AStar >> check c g tr2 (sub t1 0 x)
           else Bad "LHS and RHS of identity don't match after erasure."
         Ok _ -> Bad "Term is not an identity durring term checking."
-    Ok (APi ty1 ty2) ->
+    APi ty1 ty2 ->
       case nwhnf c ty of
         Ok AStar -> check c g ty1 AStar >> check c (Snoc g ty1) ty2 AStar
         _ -> Bad "Pi types can only have type *."
-    Ok (AIPi ty1 ty2) ->
+    AIPi ty1 ty2 ->
       case nwhnf c ty of
         Ok AStar -> check c g ty1 AStar >> check c (Snoc g ty1) ty2 AStar
         _ -> Bad "Implicit products can only have type *."
-    Ok (AIota ty1 ty2) ->
+    AIota ty1 ty2 ->
       case nwhnf c ty of
         Ok AStar -> check c g ty1 AStar >> check c (Snoc g ty1) ty2 AStar
         _ -> Bad "Dependent intersections can only have type *."
-    Ok (AId x y) ->
+    AId x y ->
       case nwhnf c ty of
         Ok AStar -> Ok () -- Perhapse a better check is needed. x and y *should* be valid terms.
         _ -> Bad "Heterogenious equalities can only have type *."
-    Ok AStar ->
+    AStar ->
       case nwhnf c ty of
         Ok AStar -> Ok ()
         _ -> Bad "* can only have type *."
