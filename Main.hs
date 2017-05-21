@@ -1,5 +1,3 @@
-{-# language LambdaCase #-}
-
 module Main where
 
 import Exp.Lex
@@ -90,7 +88,7 @@ errIOE (Ok a)  = putStrLn $ printD 0 a
 
 errIOT :: Err ATerm -> IO ()
 errIOT (Bad s) = putStrLn s
-errIOT (Ok a)  = putStrLn $ show a
+errIOT (Ok a)  = print a
 
 -- Repl Loop
 mainLoop :: String -> TopCtx -> IO String

@@ -1,5 +1,3 @@
-{-# language LambdaCase #-}
-
 module RawSyntax where
 
 import AbstractSyntax
@@ -81,13 +79,13 @@ fromInter g IStar = Ok AStar
 {- Convert concrete syntax into intermediate syntax -}
 fromCon :: Exp -> Err ITerm
 fromCon (SLet d e) = Bad "TO DO: Implement let expressions"
-fromCon (SLam (AOTele (AIdent e) : []) o) = ILam e <$> fromCon o
+fromCon (SLam [AOTele (AIdent e)] o) = ILam e <$> fromCon o
 fromCon (SLam (AOTele (AIdent e) : l) o) = ILam e <$> fromCon (SLam l o)
-fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : []) o)
+fromCon (SLam [POTele (PTele (SVar (AIdent e)) t)] o)
   = ILam e <$> (IAnn <$> fromCon t <*> fromCon o)
 fromCon (SLam (POTele (PTele (SVar (AIdent e)) t) : l) o)
   = ILam e <$> (IAnn <$> fromCon t <*> fromCon (SLam l o))
-fromCon (SLami (AIdent e : []) o) = ILAM e <$> fromCon o
+fromCon (SLami [AIdent e] o) = ILAM e <$> fromCon o
 fromCon (SLami (AIdent e : l) o) = ILAM e <$> fromCon (SLami l o)
 fromCon (SAppi a b) = IAppi <$> fromCon a <*> fromCon b
 fromCon (SApp a b) = IApp <$> fromCon a <*> fromCon b
@@ -98,9 +96,9 @@ fromCon (SPair a b) = IIPair <$> fromCon a <*> fromCon b
 fromCon SBeta = Ok IBeta
 fromCon (SVar (AIdent e)) = Ok $ IVS e
 fromCon (SFun a b) = IPit "" <$> fromCon a <*> fromCon b
-fromCon (SPi (PTele (SVar (AIdent e)) t : []) o) = IPit e <$> fromCon t <*> fromCon o
+fromCon (SPi [PTele (SVar (AIdent e)) t] o) = IPit e <$> fromCon t <*> fromCon o
 fromCon (SPi (PTele (SVar (AIdent e)) t : l) o) = IPit e <$> fromCon t <*> fromCon (SPi l o)
-fromCon (SIPi (ITele (SVar (AIdent e)) t : []) o) = IIPi e <$> fromCon t <*> fromCon o
+fromCon (SIPi [ITele (SVar (AIdent e)) t] o) = IIPi e <$> fromCon t <*> fromCon o
 fromCon (SIPi (ITele (SVar (AIdent e)) t : l) o) = IIPi e <$> fromCon t <*> fromCon (SIPi l o)
 fromCon (SId a b) = IId <$> fromCon a <*> fromCon b
 fromCon (SIota (PTele (SVar (AIdent e)) t) b) = IIota e <$> fromCon t <*> fromCon b

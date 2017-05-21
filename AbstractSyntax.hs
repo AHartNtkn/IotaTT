@@ -1,11 +1,12 @@
-{-# language MultiParamTypeClasses , LambdaCase #-}
-
 module AbstractSyntax where
 
 import Exp.ErrM
 
 errLookup :: (Show a, Eq a) => a -> [(a, b)] -> Err b
-errLookup a l = (\case { Nothing -> Bad ("Failed to locate "++ show a++".") ; Just k -> Ok k}) (lookup a l)
+errLookup a l =
+  case lookup a l of
+    Nothing -> Bad $ "Failed to locate "++ show a++"."
+    Just k -> Ok k
 
 {- Unannotated Terms -}
 data Term
@@ -109,7 +110,7 @@ sub s n AStar = AStar
 -- Weak Head Normal Form
 whnf' :: Bool -> TopCtx -> ATerm -> Err ATerm
 whnf' names c ee = spine ee []
-    where spine (AVS s) xs = 
+    where spine (AVS s) xs =
             if names -- If true, then remove names. Used only on types.
             then errLookup s c >>= flip spine xs . fst
             else app (AVS s) xs
