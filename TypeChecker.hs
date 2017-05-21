@@ -10,9 +10,9 @@ data Ctx = Empty
          | Snoc Ctx ATerm
 
 infer :: TopCtx -> Ctx -> ATerm -> Err ATerm
-infer c g (AVS s) = snd <$> errLookup s c
 infer c g tr =
   case whnf c tr of
+    Ok (AVS s) -> snd <$> errLookup s c
     Ok (AV n) ->
       case (g , n) of
         (Empty , _) -> Bad "Cannot infer term variable in empty context."

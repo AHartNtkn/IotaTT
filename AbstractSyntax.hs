@@ -7,20 +7,6 @@ import Exp.ErrM
 errLookup :: (Show a, Eq a) => a -> [(a, b)] -> Err b
 errLookup a l = (\case { Nothing -> Bad ("Failed to locate "++ show a++".") ; Just k -> Ok k}) (lookup a l)
 
-{- Unannotated deBrujin Lambda Terms -}
-class DeBruijin a where
-  -- Check if a variable occures free in a term
-  freeIn :: a -> Int -> Bool
-  -- Increment free variables
-  increaseFree :: a -> Int -> Int -> a
-
-  incFree :: a -> a
-  incFree s = increaseFree s 0 1
-
--- A type class for substitutions
-class DeBruijin b => Substitute a b where
-  sub :: a -> Int -> b -> b
-
 {- Unannotated Terms -}
 data Term
   = V Int
@@ -32,39 +18,6 @@ data Term
   | Id Term Term
   | Star
   deriving (Eq)
-
-instance DeBruijin Term where
-  freeIn (V x) n       = x == n
-  freeIn (Lam d) n     = freeIn d (1 + n)
-  freeIn (App d d1) n  = freeIn d n || freeIn d1 n
-  freeIn (Pi t tp) n   = freeIn t n || freeIn tp (1 + n)
-  freeIn (IPi t tp) n  = freeIn t n || freeIn tp (1 + n)
-  freeIn (Iota t tp) n = freeIn t n || freeIn tp (1 + n)
-  freeIn (Id x y)    n = freeIn x n || freeIn y n
-  freeIn Star n        = False
-
-  increaseFree (V x) n i       = if x >= n then V (i + x) else V x
-  increaseFree (Lam d) n i     = Lam  (increaseFree d (1 + n) i)
-  increaseFree (App d1 d2) n i = App  (increaseFree d1 n i) (increaseFree d2 n i)
-  increaseFree (Pi t tp) n i   = Pi   (increaseFree t n i)  (increaseFree tp (1 + n) i)
-  increaseFree (IPi t tp) n i  = IPi  (increaseFree t n i)  (increaseFree tp (1 + n) i)
-  increaseFree (Iota t tp) n i = Iota (increaseFree t n i)  (increaseFree tp (1 + n) i)
-  increaseFree (Id x y) n i    = Id   (increaseFree x n i)  (increaseFree y n i)
-  increaseFree Star n i        = Star
-
-instance Substitute Term Term where
-  sub s n (V x) =
-    if x >= n then (if x == n
-          then s           -- if n = x, return s
-          else V (x - 1))  -- if n < x, Ex y . suc y = x; return y
-    else V x               -- if Vj x isn't free, do nothing
-  sub s n (Lam d)     = Lam  (sub (incFree s) (1 + n) d)
-  sub s n (App d1 d2) = App  (sub s n d1) (sub s n d2)
-  sub s n (Pi t tp)   = Pi   (sub s n t)  (sub (incFree s) (1 + n) tp)
-  sub s n (IPi t tp)  = IPi  (sub s n t)  (sub (incFree s) (1 + n) tp)
-  sub s n (Iota t tp) = Iota (sub s n t)  (sub (incFree s) (1 + n) tp)
-  sub s n (Id x y)    = Id   (sub s n x)  (sub s n y)
-  sub s n Star = Star
 
 {- Annotated Types -}
 data ATerm
@@ -90,66 +43,68 @@ data ATerm
 {- The context used by the interpreter -}
 type TopCtx = [(String, (ATerm, ATerm))]
 
-instance DeBruijin ATerm where
-  freeIn (AV x)        n = x == n
-  freeIn (AVS x)       n = False
-  freeIn (ALam d)      n = freeIn d (1 + n)
-  freeIn (AAnn d d1)   n = freeIn d n || freeIn d1 n
-  freeIn (AApp d d1)   n = freeIn d n || freeIn d1 n
-  freeIn (ALAM d)      n = freeIn d (1 + n)
-  freeIn (AAppi d d1)  n = freeIn d n || freeIn d1 n
-  freeIn (AIPair d d1) n = freeIn d n || freeIn d1 n
-  freeIn (AFst d)      n = freeIn d n
-  freeIn (ASnd d)      n = freeIn d n
-  freeIn ABeta         n = False
-  freeIn (ARho d tp b) n = freeIn d n || freeIn tp (1 + n) || freeIn b n
-  freeIn (APi t tp)    n = freeIn t n || freeIn tp (1 + n)
-  freeIn (AIPi t tp)   n = freeIn t n || freeIn tp (1 + n)
-  freeIn (AIota t tp)  n = freeIn t n || freeIn tp (1 + n)
-  freeIn (AId x y)     n = freeIn x n || freeIn y n
-  freeIn AStar n = False
+-- Check if a variable occures free in a term
+freeIn (AV x)        n = x == n
+freeIn (AVS x)       n = False
+freeIn (ALam d)      n = freeIn d (1 + n)
+freeIn (AAnn d d1)   n = freeIn d n || freeIn d1 n
+freeIn (AApp d d1)   n = freeIn d n || freeIn d1 n
+freeIn (ALAM d)      n = freeIn d (1 + n)
+freeIn (AAppi d d1)  n = freeIn d n || freeIn d1 n
+freeIn (AIPair d d1) n = freeIn d n || freeIn d1 n
+freeIn (AFst d)      n = freeIn d n
+freeIn (ASnd d)      n = freeIn d n
+freeIn ABeta         n = False
+freeIn (ARho d tp b) n = freeIn d n || freeIn tp (1 + n) || freeIn b n
+freeIn (APi t tp)    n = freeIn t n || freeIn tp (1 + n)
+freeIn (AIPi t tp)   n = freeIn t n || freeIn tp (1 + n)
+freeIn (AIota t tp)  n = freeIn t n || freeIn tp (1 + n)
+freeIn (AId x y)     n = freeIn x n || freeIn y n
+freeIn AStar n = False
 
-  increaseFree (AV x)       n i = if x >= n then AV (i + x) else AV x
-  increaseFree (AVS s)      n i = AVS s
-  increaseFree (ALam d)     n i = ALam   (increaseFree d (1 + n) i)
-  increaseFree (AAnn d b)   n i = AAnn   (increaseFree d n i) (increaseFree b n i)
-  increaseFree (AApp d b)   n i = AApp   (increaseFree d n i) (increaseFree b n i)
-  increaseFree (ALAM d)     n i = ALAM   (increaseFree d (1 + n) i)
-  increaseFree (AAppi d b)  n i = AAppi  (increaseFree d n i) (increaseFree b n i)
-  increaseFree (AIPair d b) n i = AIPair (increaseFree d n i) (increaseFree b n i)
-  increaseFree (AFst d)     n i = AFst   (increaseFree d n i)
-  increaseFree (ASnd d)     n i = ASnd   (increaseFree d n i)
-  increaseFree ABeta        n i = ABeta
-  increaseFree (ARho d t b) n i = ARho   (increaseFree d n i) (increaseFree t (1 + n) i) (increaseFree b n i)
-  increaseFree (APi t tp)   n i = APi    (increaseFree t n i) (increaseFree tp (1 + n) i)
-  increaseFree (AIPi t tp)  n i = AIPi   (increaseFree t n i) (increaseFree tp (1 + n) i)
-  increaseFree (AIota t tp) n i = AIota  (increaseFree t n i) (increaseFree tp (1 + n) i)
-  increaseFree (AId x y)    n i = AId    (increaseFree x n i) (increaseFree y n i)
-  increaseFree AStar n i = AStar
+-- Increment free variables
+increaseFree (AV x)       n i = if x >= n then AV (i + x) else AV x
+increaseFree (AVS s)      n i = AVS s
+increaseFree (ALam d)     n i = ALam   (increaseFree d (1 + n) i)
+increaseFree (AAnn d b)   n i = AAnn   (increaseFree d n i) (increaseFree b n i)
+increaseFree (AApp d b)   n i = AApp   (increaseFree d n i) (increaseFree b n i)
+increaseFree (ALAM d)     n i = ALAM   (increaseFree d (1 + n) i)
+increaseFree (AAppi d b)  n i = AAppi  (increaseFree d n i) (increaseFree b n i)
+increaseFree (AIPair d b) n i = AIPair (increaseFree d n i) (increaseFree b n i)
+increaseFree (AFst d)     n i = AFst   (increaseFree d n i)
+increaseFree (ASnd d)     n i = ASnd   (increaseFree d n i)
+increaseFree ABeta        n i = ABeta
+increaseFree (ARho d t b) n i = ARho   (increaseFree d n i) (increaseFree t (1 + n) i) (increaseFree b n i)
+increaseFree (APi t tp)   n i = APi    (increaseFree t n i) (increaseFree tp (1 + n) i)
+increaseFree (AIPi t tp)  n i = AIPi   (increaseFree t n i) (increaseFree tp (1 + n) i)
+increaseFree (AIota t tp) n i = AIota  (increaseFree t n i) (increaseFree tp (1 + n) i)
+increaseFree (AId x y)    n i = AId    (increaseFree x n i) (increaseFree y n i)
+increaseFree AStar n i = AStar
 
-instance Substitute ATerm ATerm where
-  sub s n (AV x) =
-    if x >= n
-    then (if x == n
-          then s
-          else AV (x - 1))
-    else AV x
-  sub _ _ (AVS s) = AVS s
-  sub s n (ALam d)      = ALam (sub (incFree s) (1 + n) d)
-  sub s n (AAnn d b)    = AAnn (sub s n d) (sub s n b)
-  sub s n (AApp d b)    = AApp (sub s n d) (sub s n b)
-  sub s n (ALAM d)      = ALAM (sub (incFree s) (1 + n) d)
-  sub s n (AAppi d b)   = AAppi (sub s n d) (sub s n b)
-  sub s n (AIPair d b)  = AIPair (sub s n d) (sub s n b)
-  sub s n (AFst d)      = AFst (sub s n d)
-  sub s n (ASnd d)      = ASnd (sub s n d)
-  sub s n ABeta         = ABeta
-  sub s n (ARho d tp b) = ARho (sub s n d) (sub (incFree s) (1 + n) tp) (sub s n b)
-  sub s n (APi t tp)    = APi (sub s n t) (sub (incFree s) (1 + n) tp)
-  sub s n (AIPi t tp)   = AIPi (sub s n t) (sub (incFree s) (1 + n) tp)
-  sub s n (AIota t tp)  = AIota (sub s n t) (sub (incFree s) (1 + n) tp)
-  sub s n (AId x y)     = AId (sub s n x) (sub s n y)
-  sub s n AStar = AStar
+incFree s = increaseFree s 0 1
+
+sub s n (AV x) =
+  if x >= n
+  then (if x == n
+        then s
+        else AV (x - 1))
+  else AV x
+sub _ _ (AVS s) = AVS s
+sub s n (ALam d)      = ALam (sub (incFree s) (1 + n) d)
+sub s n (AAnn d b)    = AAnn (sub s n d) (sub s n b)
+sub s n (AApp d b)    = AApp (sub s n d) (sub s n b)
+sub s n (ALAM d)      = ALAM (sub (incFree s) (1 + n) d)
+sub s n (AAppi d b)   = AAppi (sub s n d) (sub s n b)
+sub s n (AIPair d b)  = AIPair (sub s n d) (sub s n b)
+sub s n (AFst d)      = AFst (sub s n d)
+sub s n (ASnd d)      = ASnd (sub s n d)
+sub s n ABeta         = ABeta
+sub s n (ARho d tp b) = ARho (sub s n d) (sub (incFree s) (1 + n) tp) (sub s n b)
+sub s n (APi t tp)    = APi (sub s n t) (sub (incFree s) (1 + n) tp)
+sub s n (AIPi t tp)   = AIPi (sub s n t) (sub (incFree s) (1 + n) tp)
+sub s n (AIota t tp)  = AIota (sub s n t) (sub (incFree s) (1 + n) tp)
+sub s n (AId x y)     = AId (sub s n x) (sub s n y)
+sub s n AStar = AStar
 
 -- Weak Head Normal Form
 whnf' :: Bool -> TopCtx -> ATerm -> Err ATerm
@@ -250,7 +205,7 @@ erase c (AVS x)       = errLookup x c >>= erase c . fst
 erase c (ALam t)      = Lam <$> erase c t
 erase c (AAnn t t')   = erase c t'
 erase c (AApp t t')   = App <$> erase c t <*> erase c t'
-erase c (ALAM t)      = sub (V 0) 0 <$> erase c t -- Free variables need to be decremented.
+erase c (ALAM t)      = erase c (sub (AV 0) 0 t) -- Free variables need to be decremented.
 erase c (AAppi t t')  = erase c t
 erase c (AIPair t t') = erase c t
 erase c (AFst t)      = erase c t
