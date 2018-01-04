@@ -1,6 +1,6 @@
 module TypeChecker where
 
-import Exp.ErrM
+-- import Exp.ErrM
 import AbstractSyntax
 
 data Ctx = Empty
@@ -90,7 +90,7 @@ check c g tr ty =
         Snoc g cty ->
           if nf c aty == nf c (incFree cty)
           then check c (Snoc g cty) tr ty
-          else Bad "Type annotation didn'tr match check."
+          else Bad "Type annotation didn't match check."
         _ -> Bad "Annotation appeared without being added to local context."
     AApp tr1 tr2 ->
       do ity <- infer c g (AApp tr1 tr2)
