@@ -30,7 +30,10 @@ executable iotatt
   build-depends:
     base,
     unordered-containers,
-    array
+    array,
+    transformers,
+    mtl,
+    containers
   -- hs-source-dirs:
   build-tools:         alex, happy, bnfc
   default-language:    Haskell2010

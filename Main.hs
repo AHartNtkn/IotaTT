@@ -11,11 +11,23 @@ import System.IO
 import Control.Monad
 import Data.Char(ord,chr)
 import System.Environment
+import qualified Data.Map.Strict as Map
+import Control.Monad.Reader hiding (liftIO)
+import Control.Monad.State hiding (liftIO)
+import Control.Monad.Except hiding (liftIO)
+import Control.Monad.Trans.Except hiding (liftIO)
 
 import AbstractSyntax
 import TypeChecker
 import PrettyPrinting
 import RawSyntax
+
+-- =*=*=*=*=*=*=*=* Boilerplate *=*=*=*=*=*=*=*=*=
+
+errPr :: Err a -> Proof a
+errPr e = case e of
+  Bad e -> proofError e
+  Ok e -> return e
 
 -- =*=*=*=*=*=*=*=* Language Data *=*=*=*=*=*=*=*=*=
 
@@ -26,99 +38,103 @@ endQ s = extention == reverse (take (length extention) (reverse s))
 
 -- =*=*=*=*=*=*=*=* Declarations *=*=*=*=*=*=*=*=*=
 
--- Proccess out where clause
+-- Process out where clause
 whereToExp :: ExpWhere -> Exp
 whereToExp (Where e dl) = SLet dl e
 whereToExp (NoWhere e) = e
 
 -- Add a declaration to a context
-addDecl :: TopCtx -> Decl -> Err TopCtx
-addDecl ctx (DeclDef (AIdent defId) retTy eWhere) =
-    convert ctx (whereToExp eWhere) >>= \ty ->
-    convert ctx retTy >>= \ki ->
-    check ctx Empty ty ki >>
-    Ok ((defId , (ty , ki)) : ctx)
+addDecl :: Decl -> Proof ()
+addDecl (DeclDef (AIdent defId) retTy eWhere) = do
+    tr <- convert (whereToExp eWhere)
+    ty <- convert retTy
+    check tr ty
+    tbl <- get
+    put $ Map.insert defId (tr , ty) tbl
 
 -- Add a list of declarations to a context
-addDecls :: TopCtx -> [Decl] -> IO TopCtx
-addDecls ctx [] = pure ctx
-addDecls ctx (d@(DeclDef (AIdent s) _ _):dl) = case addDecl ctx d of
-  -- If declaration adding failed, print error and return an empty context
-  Bad e -> putStrLn e >> putStrLn ("Failed at adding definition: "++s) >> return []
-  Ok ctx' -> putStrLn ("Checked: "++s) >> addDecls ctx' dl
-
+addDecls :: [Decl] -> Proof ()
+addDecls [] = return ()
+addDecls (d@(DeclDef (AIdent s) _ _):dl) = do
+  liftIO $ putStrLn ("Checking " ++ s)
+  addDecl d
+  addDecls dl
+  
 -- Given a context and a file, import the file to the context
-fileToCtx :: TopCtx -> String -> IO TopCtx
-fileToCtx ctx f = do
-  fileContents <- readFile f
+fileToCtx :: String -> Proof ()
+fileToCtx f = do
+  fileContents <- liftIO $ readFile f
   case (pModule . resolveLayout True . myLexer) fileContents of
-    Bad s -> putStrLn s >> return [] -- If the file fails to parse, return an empty context
-    Ok m -> moduleToCtx ctx m
+    Bad s -> liftIO $ putStrLn s -- If the file fails to parse, return an empty context
+    Ok m -> moduleToCtx m
 
 -- Given a module with imports, combine all into a single context
-moduleToCtx :: TopCtx -> Module -> IO TopCtx
-moduleToCtx ctx (Module _ [] decl) = addDecls ctx decl
-moduleToCtx ctx (Module a (Import (AIdent s):im) decl) = do
-  sctx <- if endQ s then fileToCtx ctx s else fileToCtx ctx (s++extention)
-  moduleToCtx (ctx ++ sctx) (Module a im decl)
+moduleToCtx :: Module -> Proof ()
+moduleToCtx (Module _ [] decl) = addDecls decl
+moduleToCtx (Module a (Import (AIdent s):im) decl) = do
+  sctx <- if endQ s then fileToCtx s else fileToCtx (s++extention)
+  moduleToCtx (Module a im decl)
 
 -- =*=*=*=*=*=*=*=* REPL / Main loop *=*=*=*=*=*=*=*=*=
-
--- Print the content of a context, for debuging
-prCtx :: TopCtx -> String
-prCtx [] = ""
-prCtx ((s , v):vs) = s ++ " : " ++ show v ++ "\n" ++ prCtx vs
-
--- Evaluate expression from user input
 -- NOTE: pExp :: [Token] -> Err Exp
-evaluateInput :: TopCtx -> String -> Err ATerm
-evaluateInput ctx input =
-  -- process user input into an expression
-  (pExp . resolveLayout True . myLexer) input >>=
-  convert ctx >>= nf ctx
-
--- When needed, print contents of an Error
-errIO :: Err ATerm -> IO ()
-errIO (Bad s) = putStrLn s
-errIO (Ok a)  = putStrLn $ printA 0 a
-
-errIOE :: Err Term -> IO ()
-errIOE (Bad s) = putStrLn s
-errIOE (Ok a)  = putStrLn $ printD 0 a
-
-errIOT :: Err ATerm -> IO ()
-errIOT (Bad s) = putStrLn s
-errIOT (Ok a)  = print a
 
 -- Repl Loop
-mainLoop :: String -> TopCtx -> IO String
-mainLoop s ctx =
-  putStr "> " >> getLine >>= \ input -> -- Print prompt and get user input
+mainLoop :: String -> Proof ()
+mainLoop s = (do
+  liftIO $ putStr "> "
+  input <- liftIO getLine -- Print prompt and get user input
   case input of -- REPL commands
-    ":q"   -> return "Goodbye!" -- Quit with ":q"
-    ":con" -> putStrLn (prCtx ctx) >> mainLoop s ctx -- print everything in the current context
-    ":h"   -> putStrLn (
+    ":q"   -> return () -- Quit with ":q"
+    ":con" -> do
+        tbl <- get
+        liftIO $ putStrLn (show tbl)
+        mainLoop s -- print everything in the current context
+    ":h"   -> do
+           liftIO $ putStrLn (
                  "<Expression> - Evaluate an expression.\n"++
-                 ":e <Expression> - Evaluate then erase an expression.\n"++
+                 ":a <Expression> - Print the (unevaluated) AST for an expression.\n"++
+                 ":con - Print current context (for debugging)\n"++
+                 ":e <Expression> - Print the errased form of an expression.\n"++
                  ":h - Help (list of commands)\n"++
-                 ":con - Print current context\n"++
                  ":q - Quit\n:r - Reload file\n"++
-                 ":t <Expression> - Check the type of an expression\n"
-           ) >> mainLoop s ctx -- help command
-    ":r"   -> fileToCtx [] s >>= mainLoop s
-    ':':'t':' ':l ->
-      errIO (
-        (pExp . resolveLayout True . myLexer) l >>=
-        convert ctx >>=
-        infer ctx Empty) >>
-      mainLoop s ctx
-    ':':'e':' ':l -> errIOE (evaluateInput ctx l >>= erase ctx) >> mainLoop s ctx
-    _      -> errIO (evaluateInput ctx input) >> mainLoop s ctx -- Loop back with same context
+                 ":t <Expression> - Check the type of an expression\n")
+           mainLoop s -- help command
+    ':':'t':' ':l -> do
+       catchError
+         (errPr (pExp . resolveLayout True . myLexer $ l) >>= convert >>= infer >>= liftIO . putStrLn . printA 0)
+         (\_ -> return ())
+       mainLoop s
+    ':':'a':' ':l -> do
+       catchError
+         (errPr ((pExp . resolveLayout True . myLexer) l) >>= convert >>= liftIO . putStrLn . show)
+         (\_ -> return ())
+       mainLoop s
+    ':':'e':' ':l -> do
+       catchError
+         (errPr ((pExp . resolveLayout True . myLexer) input) >>= convert >>= nf >>= erase >>= liftIO . putStrLn . printD 0)
+         (\_ -> return ())
+       mainLoop s
+    ":r"   -> put Map.empty >> fileToCtx s >> mainLoop s
+    _  -> do
+       catchError
+         (errPr ((pExp . resolveLayout True . myLexer) input) >>= convert >>= nf >>= liftIO . putStrLn . printA 0)
+         (\_ -> return ())
+       mainLoop s
+    ) `catchError` (\_ -> do
+      liftIO $ putStrLn "Restarting with empty context. Enter \":r\" to reload from file."
+      mainLoop s
+      )
 
 -- Main program
 main :: IO String
 main = do
   hSetBuffering stdout NoBuffering
   name <- getArgs
-  ctx <- fileToCtx [] $ head name
-  mainLoop (head name) ctx
+  runProof (do
+    liftIO $ hSetBuffering stdout NoBuffering
+    liftIO $ putStrLn "Starting..."
+    fileToCtx (head name) `catchError` (\_ -> do
+      put Map.empty
+      liftIO $ putStrLn "Restarting with empty context. Enter \":r\" to reload from file." )
+    mainLoop $ head name)
+  return "Goodbye!"

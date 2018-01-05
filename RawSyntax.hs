@@ -5,7 +5,6 @@ import PrettyPrinting
 
 -- Representation for printing
 import Exp.Abs
-import Exp.ErrM
 
 import Control.Monad
 import Data.String
@@ -57,28 +56,28 @@ index s n (IId d x) = IId (index s n d) (index s n x)
 index s n IStar = IStar
 
 -- Convert intermediate syntax into abstract syntax
-fromInter :: TopCtx -> ITerm -> Err ATerm
-fromInter g (IV x) = Ok $ AV x
-fromInter g (IVS x) = Ok $ AVS x
-fromInter g (ILam x d) = ALam <$> fromInter g d
-fromInter g (IApp d d1) = AApp <$> fromInter g d <*> fromInter g d1
-fromInter g (IAnn d d1) = AAnn <$> fromInter g d <*> fromInter g d1
-fromInter g (ILAM x d) = ALAM <$> fromInter g d
-fromInter g (IAppi d d1) = AAppi <$> fromInter g d <*> fromInter g d1
-fromInter g (IIPair d d1) = AIPair <$> fromInter g d <*> fromInter g d1
-fromInter g (IFst d) = AFst <$> fromInter g d
-fromInter g (ISnd d) = ASnd <$> fromInter g d
-fromInter g IBeta = Ok ABeta
-fromInter g (IRho d x tp d1) = ARho <$> fromInter g d <*> fromInter g tp <*> fromInter g d1
-fromInter g (IPit x d d1) = APi <$> fromInter g d <*> fromInter g d1
-fromInter g (IIPi x d d1) = AIPi <$> fromInter g d <*> fromInter g d1
-fromInter g (IIota x d d1) = AIota <$> fromInter g d <*> fromInter g d1
-fromInter g (IId x y) = AId <$> fromInter g x <*> fromInter g y
-fromInter g IStar = Ok AStar
+fromInter :: ITerm -> Proof ATerm
+fromInter (IV x) = return $ AV x
+fromInter (IVS x) = return $ AVS x
+fromInter (ILam x d) = ALam <$> fromInter d
+fromInter (IApp d d1) = AApp <$> fromInter d <*> fromInter d1
+fromInter (IAnn d d1) = AAnn <$> fromInter d <*> fromInter d1
+fromInter (ILAM x d) = ALAM <$> fromInter d
+fromInter (IAppi d d1) = AAppi <$> fromInter d <*> fromInter d1
+fromInter (IIPair d d1) = AIPair <$> fromInter d <*> fromInter d1
+fromInter (IFst d) = AFst <$> fromInter d
+fromInter (ISnd d) = ASnd <$> fromInter d
+fromInter IBeta = return ABeta
+fromInter (IRho d x tp d1) = ARho <$> fromInter d <*> fromInter tp <*> fromInter d1
+fromInter (IPit x d d1) = APi <$> fromInter d <*> fromInter d1
+fromInter (IIPi x d d1) = AIPi <$> fromInter d <*> fromInter d1
+fromInter (IIota x d d1) = AIota <$> fromInter d <*> fromInter d1
+fromInter (IId x y) = AId <$> fromInter x <*> fromInter y
+fromInter IStar = return AStar
 
 {- Convert concrete syntax into intermediate syntax -}
-fromCon :: Exp -> Err ITerm
-fromCon (SLet d e) = Bad "TO DO: Implement let expressions"
+fromCon :: Exp -> Proof ITerm
+fromCon (SLet d e) = proofError "TO DO: Implement let expressions"
 fromCon (SLam [AOTele (AIdent e)] o) = ILam e <$> fromCon o
 fromCon (SLam (AOTele (AIdent e) : l) o) = ILam e <$> fromCon (SLam l o)
 fromCon (SLam [POTele (PTele (SVar (AIdent e)) t)] o)
@@ -89,12 +88,12 @@ fromCon (SLami [AIdent e] o) = ILAM e <$> fromCon o
 fromCon (SLami (AIdent e : l) o) = ILAM e <$> fromCon (SLami l o)
 fromCon (SAppi a b) = IAppi <$> fromCon a <*> fromCon b
 fromCon (SApp a b) = IApp <$> fromCon a <*> fromCon b
-fromCon (SRho (SVar (AIdent e)) t a b) =  IRho <$> fromCon a <*> Ok e <*> fromCon t <*> fromCon b
+fromCon (SRho (SVar (AIdent e)) t a b) =  IRho <$> fromCon a <*> return e <*> fromCon t <*> fromCon b
 fromCon (SFst a) = IFst <$> fromCon a
 fromCon (SSnd a) = ISnd <$> fromCon a
 fromCon (SPair a b) = IIPair <$> fromCon a <*> fromCon b
-fromCon SBeta = Ok IBeta
-fromCon (SVar (AIdent e)) = Ok $ IVS e
+fromCon SBeta = return IBeta
+fromCon (SVar (AIdent e)) = return $ IVS e
 fromCon (SFun a b) = IPit "" <$> fromCon a <*> fromCon b
 fromCon (SPi [PTele (SVar (AIdent e)) t] o) = IPit e <$> fromCon t <*> fromCon o
 fromCon (SPi (PTele (SVar (AIdent e)) t : l) o) = IPit e <$> fromCon t <*> fromCon (SPi l o)
@@ -102,9 +101,9 @@ fromCon (SIPi [ITele (SVar (AIdent e)) t] o) = IIPi e <$> fromCon t <*> fromCon 
 fromCon (SIPi (ITele (SVar (AIdent e)) t : l) o) = IIPi e <$> fromCon t <*> fromCon (SIPi l o)
 fromCon (SId a b) = IId <$> fromCon a <*> fromCon b
 fromCon (SIota (PTele (SVar (AIdent e)) t) b) = IIota e <$> fromCon t <*> fromCon b
-fromCon SU = Ok IStar
-fromCon _ = Bad "Parsing Error"
+fromCon SU = return IStar
+fromCon _ = proofError "Parsing Error"
 
 {- Convert Concrete Syntax into Abstract Syntax -}
-convert :: TopCtx -> Exp -> Err ATerm
-convert t e = fromCon e >>= fromInter t . index "" 0
+convert :: Exp -> Proof ATerm
+convert e = fromCon e >>= fromInter . index "" 0
