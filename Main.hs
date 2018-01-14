@@ -111,7 +111,7 @@ mainLoop s = (do
        mainLoop s
     ':':'e':' ':l -> do
        catchError
-         (errPr ((pExp . resolveLayout True . myLexer) input) >>= convert >>= nf >>= erase >>= liftIO . putStrLn . pshowU)
+         (errPr ((pExp . resolveLayout True . myLexer) l) >>= convert >>= nf >>= erase >>= liftIO . putStrLn . pshowU)
          (\_ -> return ())
        mainLoop s
     ":r"   -> put Map.empty >> fileToCtx s >> mainLoop s
