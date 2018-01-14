@@ -6,9 +6,6 @@ with dependent intersections, a heterogeneous equality, and
 implicit products. This allows one to have a pure-type-system
 capable of expressing dependent elimination principals.
 
-This branch has types and kinds unified, using `* : *` instead
-of a universe hierarchy, for now.
-
 Right now, the language only supports adding declarations
 and type checking them. All files must begin with a module
 declaration;
@@ -20,10 +17,13 @@ module Nat where
 After that, a declaration of the form `<NAME> : <TYPE> = <TERM>`
 can be declared;
 ```
-cNat : * = (a : *) -> (a -> a) -> a -> a
+cNat : U[0] = (a : U[0]) -> (a -> a) -> a -> a
 
 cZ : cNat = \ a s z . z
 ```
+
+`U[0]` is a universe. For each natural number `i`, there is a corresponding
+type universe `U[i]`, with `U[i] : U[i+1]`, etc.
 
 Implicit products are denoted with curly braces;
 ```
