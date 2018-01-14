@@ -94,14 +94,14 @@ mainLoop s = (do
                  "<Expression> - Evaluate an expression.\n"++
                  ":a <Expression> - Print the (unevaluated) AST for an expression.\n"++
                  ":con - Print current context (for debugging)\n"++
-                 ":e <Expression> - Print the errased form of an expression.\n"++
+                 ":e <Expression> - Print the erased form of an expression.\n"++
                  ":h - Help (list of commands)\n"++
                  ":q - Quit\n:r - Reload file\n"++
                  ":t <Expression> - Check the type of an expression\n")
            mainLoop s -- help command
     ':':'t':' ':l -> do
        catchError
-         (errPr (pExp . resolveLayout True . myLexer $ l) >>= convert >>= infer >>= liftIO . putStrLn . printA 0)
+         (errPr (pExp . resolveLayout True . myLexer $ l) >>= convert >>= infer >>= liftIO . putStrLn . pshowA)
          (\_ -> return ())
        mainLoop s
     ':':'a':' ':l -> do
@@ -111,13 +111,13 @@ mainLoop s = (do
        mainLoop s
     ':':'e':' ':l -> do
        catchError
-         (errPr ((pExp . resolveLayout True . myLexer) input) >>= convert >>= nf >>= erase >>= liftIO . putStrLn . printD 0)
+         (errPr ((pExp . resolveLayout True . myLexer) input) >>= convert >>= nf >>= erase >>= liftIO . putStrLn . pshowU)
          (\_ -> return ())
        mainLoop s
     ":r"   -> put Map.empty >> fileToCtx s >> mainLoop s
     _  -> do
        catchError
-         (errPr ((pExp . resolveLayout True . myLexer) input) >>= convert >>= nf >>= liftIO . putStrLn . printA 0)
+         (errPr ((pExp . resolveLayout True . myLexer) input) >>= convert >>= nf >>= liftIO . putStrLn . pshowA)
          (\_ -> return ())
        mainLoop s
     ) `catchError` (\_ -> do

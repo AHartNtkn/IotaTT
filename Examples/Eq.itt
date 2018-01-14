@@ -2,28 +2,28 @@ module Eq where
 
 import Sigma
 
-refl : (T : *) (t : T) -> t ~ t = \ T t . B
+refl : (T : U[0]) (t : T) -> t ~ t = \ T t . B
 
-subst : (T : *) (P : T -> *) (t1 : T) -> (t2 : T) -> t1 ~ t2 -> P t1 -> P t2
+subst : (T : U[0]) (P : T -> U[0]) (t1 : T) -> (t2 : T) -> t1 ~ t2 -> P t1 -> P t2
       = \ T P t1 t2 e p . r(x . P x) e . p
 
-sym : (T : *) (a : T) (b : T) -> a ~ b -> b ~ a
+sym : (T : U[0]) (a : T) (b : T) -> a ~ b -> b ~ a
     = \ T a b e . r(x . x ~ a) e . B
 
-trans : (T : *) (a : T) (b : T) (c : T) -> a ~ b -> b ~ c -> a ~ c
+trans : (T : U[0]) (a : T) (b : T) (c : T) -> a ~ b -> b ~ c -> a ~ c
     = \ T a b c e f . r(x . a ~ x) f . e
 
-transport : (A : *) (C : *) -> A ~ C -> A -> C
+transport : (A : U[0]) (C : U[0]) -> A ~ C -> A -> C
           = \ A C e a . r(x . x) e . a
 
-pair : (T : *) (S : T -> *)
+pair : (T : U[0]) (S : T -> U[0])
        (f : (t : T) -> S t)
        (g : (t : T) -> S t) ->
        ((t : T) -> f t ~ g t) ->
        (t : T) -> Pair T S t (f t) ~ Pair T S t (g t)
      = \ T S f g p t . r(x . Pair T S t (f t) ~ Pair T S t x) (p t) . B
 
-pair2 : (T : *) (S : T -> *)
+pair2 : (T : U[0]) (S : T -> U[0])
         (f : (t : T) -> S t)
         (g : (t : T) -> S t) ->
         ((t : T) -> f t ~ g t) ->

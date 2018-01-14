@@ -1,28 +1,32 @@
 module TypeChecker where
 
+import qualified Data.Map.Strict as Map
 import Control.Monad.Reader hiding (liftIO)
 import Control.Monad.State hiding (liftIO)
 import Control.Monad.Except hiding (liftIO)
 import Control.Monad.Trans.Except hiding (liftIO)
 
 import AbstractSyntax
+import PrettyPrinting
 
 infer :: ATerm -> Proof ATerm
 infer tr = do
   wtr <- whnf tr
   case wtr of
     AVS s -> snd <$> lookupVar s
-    AV n -> do
+    AV s n -> do
       ctx <- ask
       case (ctx , n) of
-        ([] , _) -> proofError "Cannot infer term variable in empty context."
-        ((x : _) , 0) -> local tail (check x AStar) >> return (quote x)
-        ((_ : _) , n) -> local tail (infer (AV (n - 1))) >>= return . quote
-    ALam (AAnn ty tr) -> do
-      check (unquote ty) AStar
+        ([] , _) -> proofError $ "Cannot infer term variable " ++ pshowA (AV s n) ++ " in empty context."
+        ((x : _) , 0) -> local tail $ do
+           infer x -- Note: this isn't used, x just needs some type.
+           return (quote x)
+        ((_ : _) , n) -> local tail (infer (AV s (n - 1))) >>= return . quote
+    ALam st (AAnn ty tr) -> do
+      infer (unquote ty) -- Note: this isn't used, unquote ty just needs some type.
       ity <- local (unquote tr:) (infer tr)
-      return (APi (unquote ty) ity)
-    ALam tr -> proofError "Cannot infer the type of an unannotated lambda term."
+      return (APi st (unquote ty) ity)
+    ALam st tr -> proofError $ "Cannot infer the type of unannotated lambda term " ++ pshowA (ALam st tr) ++ "."
     AAnn aty tr -> do
       ctx <- ask
       case ctx of
@@ -31,124 +35,207 @@ infer tr = do
           ncty <- nf (quote cty)
           if naty == ncty
           then infer tr
-          else proofError "Type annotation didn't match during inference."
-        _ ->  proofError "Annotation appeared without being added to local context durring type inference."
+          else proofError $ "Type annotation " ++ pshowA aty ++ " didn't match contextual " ++
+                            pshowA cty ++ " during inference."
+        _ ->  proofError $ "Annotation " ++ pshowA aty ++
+                           " appeared without being added to local context during type inference."
     AApp tr1 tr2 -> do
       tr1ty <- nwhnf =<< infer tr1
       case tr1ty of
-        APi tp1 tp2 -> check tr2 tp1 >> return (sub tr2 0 tp2)
-        _ -> proofError "Term is not a pi type."
-    ALAM (AAnn ty tr) -> do
-      check (unquote ty) AStar
+        APi _ tp1 tp2 -> check tr2 tp1 >> return (sub tr2 tp2)
+        _ -> proofError $ "Term " ++ pshowA tr1 ++ " is not a pi type, and so cannot be applied to an argument."
+    ALAM st (AAnn ty tr) -> do
+      infer (unquote ty) -- Note: this isn't used, unquote ty just needs some type.
       ity <- local (unquote tr:) (infer tr)
-      return (AIPi (unquote ty) ity)
-    ALAM tr -> proofError "Cannot infer the type of an implicit lambda term."
+      return (AIPi st (unquote ty) ity)
+    ALAM st tr -> proofError $ "Cannot infer the type of unannotated implicit lambda term " ++ pshowA (ALam st tr) ++ "."
     AAppi tr1 tr2 -> do
       tr1ty <- nwhnf =<< infer tr1
       case tr1ty of
-        AIPi tp1 tp2 -> check tr2 tp1 >> return (sub tr2 0 tp2)
-        _ -> proofError "Term is not an implicit product type."
-    AIPair tr1 tr2 -> proofError "Cannot infer the type of an iota constructor."
+        AIPi _ tp1 tp2 -> check tr2 tp1 >> return (sub tr2 tp2)
+        _ -> proofError $ "Term " ++ pshowA tr1 ++
+                          " is not an implicit product type, and so cannot be applied to an argument."
+    AIPair tr1 tr2 -> proofError $ "Cannot infer the type of iota constructor " ++ pshowA (AIPair tr1 tr2) ++ "."
     AFst tr -> do
       trty <- nwhnf =<< infer tr
       case trty of
-        AIota ty1 ty2 -> return ty1
-        _ -> proofError "Term is not an iota constructor (#1)."
+        AIota _ ty1 ty2 -> return ty1
+        _ -> proofError $ "Term " ++ pshowA tr ++ " is not a dependent intersection, and so cannot take first element."
     ASnd tr -> do
       trty <- nwhnf =<< infer tr
       case trty of
-        AIota tp1 tp2 -> return (sub (AFst tr) 0 tp2)
-        _ -> proofError "Term is not an iota constructor (#2)."
+        AIota _ tp1 tp2 -> return (sub (AFst tr) tp2)
+        _ -> proofError $ "Term " ++ pshowA tr ++ " is not a dependent intersection, and so cannot take second element."
     ABeta -> proofError "Identity proofs cannot be inferred."
-    ARho tr1 ty tr2 -> do
+    ARho st tr1 ty tr2 -> do
       tr1ty <- nwhnf =<< infer tr1
       case tr1ty of
-        AId x y -> check tr2 (sub x 0 ty) >> check (sub x 0 ty) AStar >> return (sub y 0 ty)
-        _ -> proofError "Term is not an identity durring term inferrence."
-    APi ty1 ty2 -> check ty1 AStar >> local (ty1:) (check ty2 AStar) >> return AStar
-    AIPi ty1 ty2 -> check ty1 AStar >> local (ty1:) (check ty2 AStar) >> return AStar
-    AIota ty1 ty2 -> check ty1 AStar >> local (ty1:) (check ty2 AStar) >> return AStar
-    AId x y -> return AStar -- Perhaps a check should be added to verify that x and y are valid terms
-    AStar -> return AStar
+        AId x y -> do 
+          check tr2 (sub x ty)
+          infer (sub x ty) -- Note: this isn't used, unquote ty just needs some type.
+          return (sub y ty)
+        _ -> proofError $ "Term " ++ pshowA tr1 ++ " is a " ++ pshowA tr1ty  ++ ", not an identity during term inference."
+    APi st ty1 ty2 -> do
+      liftMin ty1
+      local (ty1:) $ do
+        i <- liftMin ty2
+        return (AU i)
+    AIPi st ty1 ty2 -> do
+      liftMin ty1
+      local (ty1:) $ do
+        i <- liftMin ty2
+        return (AU i)
+    AIota st ty1 ty2 -> do
+      liftMin ty1
+      local (ty1:) $ do
+        i <- liftMin ty2
+        return (AU i)
+    AId x y -> do
+      ix <- liftMin x
+      iy <- liftMin y
+      return (AU (max ix iy))
+    AU i -> return (AU (i + 1))
 
 check :: ATerm -> ATerm -> Proof ()
 check tr ty =
   case tr of
-    AVS s ->
-      do ncty <- nf =<< snd <$> lookupVar s
-         nty  <- nf ty
-         if ncty == nty
-         then return ()
-         else proofError "Type didn't match durring lookup."
-    AV n -> do
+    AVS s ->do
+      tbl <- get
+      case Map.lookup s tbl of
+           Nothing -> proofError $ "Token " ++ s ++ " not found in context during type checking."
+           Just (_, t)  -> do
+             tynf <- nf ty
+             tnf <- nf t
+             case (tynf, tnf) of
+               (AU j, AU i) ->
+                 if i <= j
+                 then return ()
+                 else proofError $ "Size error during global name lookup. " ++ pshowA tr ++ " of type "
+                                      ++ pshowA tnf ++ " is too big for universe " ++ pshowA tynf ++ "."
+               _   -> do
+                 if tnf == tynf
+                 then return ()
+                 else proofError $ "Type didn't match during lookup.  Expected something of type "
+                                    ++ pshowA tynf ++ "; saw " ++ pshowA (AVS s) ++ " of type " ++ pshowA tnf ++ " instead."
+    AV st n -> do
       ctx <- ask
       case (ctx , n) of
-        ([] , _) -> proofError "Cannot check type of variable term in an empty context."
-        ((x : _) , 0) -> do
-          nty  <- erase =<< nf ty
-          nqty <- erase =<< nf (quote x)
-          if nty == nqty
-          then check ty AStar >> local tail (check x AStar)
-          else proofError "Term does not have correct type."
-        ((_ : _) , n) -> local tail (check (AV (n - 1)) (unquote ty))
-    ALam tr -> do
-      nty <- nwhnf ty
-      case nty of
-        APi ty1 ty2 -> local (ty1:) (check tr ty2)
-        _ -> proofError "Lambdas can only be Pi types."
+        ([], _) -> proofError $ "Cannot check type of variable term in an empty context."
+        (x:g, 0) -> do
+          tynf <- erase =<< nf ty
+          xnf  <- erase =<< nf (quote x)
+          case (tynf, xnf) of
+            (U j, U i) ->
+              if i <= j
+              then return ()
+              else proofError $ "Size error during local variable lookup. " ++ pshowA tr ++ " of type "
+                                  ++ pshowA x ++ " is too big for universe " ++ pshowA ty ++ "."
+            _ ->
+              if tynf == xnf
+              then do 
+                tyty <- infer ty
+                local tail $ check x (unquote tyty)
+              else proofError $ "Term does not have correct type. Expected something of type "
+                                 ++ pshowA ty ++ "; saw " ++ pshowA (AV st n) ++ " of type " ++ pshowA x ++ " instead."
+        (_:g, _) -> local tail $ check (AV st (n - 1)) (unquote ty)
+    ALam st tr -> do
+      tyw <- nwhnf ty
+      case tyw of
+        APi _ ty1 ty2 -> local (ty1:) (check tr ty2)
+        _ -> proofError $ "Lambdas can only be Pi types, not " ++ pshowA tyw ++ "."
     AAnn aty tr -> do
       ctx <- ask
       case ctx of
         (cty : _)  -> do
           naty <- nf aty
           ncty <- nf (quote cty)
-          if naty == ncty
-          then check tr ty
-          else proofError "Type annotation didn't match check."
+          case (naty, ncty) of
+            (AU j, AU i) ->
+              if i <= j
+              then return ()
+              else proofError $ "Size error during annotation check. " ++ pshowA tr ++ " of type "
+                                  ++ pshowA naty ++ " is too big for universe " ++ pshowA ncty ++ "."
+            _ ->
+              if naty == ncty
+              then check tr ty
+              else proofError "Type annotation didn't match check."
         _ -> proofError "Annotation appeared without being added to local context."
     AApp tr1 tr2 -> do
-      ity <- infer (AApp tr1 tr2)
-      nty  <- erase =<< nf ty
-      nity <- erase =<< nf ity
-      if nty == nity
-      then check ty AStar
-      else proofError "Failed to unify at application."
-    ALAM tr -> do
-      nty <- nwhnf ty
-      case nty of
-        AIPi ty1 ty2 -> local (ty1:) (check tr ty2)
-        _ -> proofError "Implicit lambdas must be implicit products."
+      tynf <- erase =<< nf ty
+      itynf <- erase =<< nf =<< infer (AApp tr1 tr2)
+      case (tynf, itynf) of
+        (U j, U i) ->
+          if i <= j
+          then return ()
+          else proofError $ "Size error during application check. " ++ pshowA (AApp tr1 tr2) ++ " of type "
+                              ++ pshowU (itynf) ++ " is too big for universe " ++ pshowA ty ++ "."
+        _ ->
+          if tynf == itynf
+          then infer ty >> return () -- Note: this isn't used, ty just needs some type.
+          else proofError $ "Failed to unify at application. Expected something of type "
+                             ++ pshowA ty ++ "; instead saw " ++ pshowA (AApp tr1 tr2) ++ " of type " ++
+                             pshowU (itynf) ++ "."
+    ALAM st tr -> do
+      tyw <- nwhnf ty
+      case tyw of
+        AIPi _ ty1 ty2 -> local (ty1:) (check tr ty2)
+        _ -> proofError $ "Implicit lambdas can only be implicit products types, not " ++ pshowA tyw ++ "."
     AAppi tr1 tr2 -> do
-      ity <- infer (AAppi tr1 tr2)
-      nty  <- erase =<< nf ty
-      nity <- erase =<< nf ity
-      if nty == nity
-      then check ty AStar
-      else proofError "Failed to unify at implicit application."
+      tynf <- erase =<< nf ty
+      itynf <- erase =<< nf =<< infer (AAppi tr1 tr2)
+      case (tynf, itynf) of
+        (U j, U i) ->
+          if i <= j
+          then return ()
+          else proofError $ "Size error during application check. " ++ pshowA (AAppi tr1 tr2) ++ " of type "
+                              ++ pshowU (itynf) ++ " is too big for universe " ++ pshowA ty ++ "."
+        _ ->
+          if tynf == itynf
+          then infer ty >> return () -- Note: this isn't used, ty just needs some type.
+          else proofError $ "Failed to unify at application. Expected something of type "
+                             ++ pshowA ty ++ "; instead saw " ++ pshowA (AAppi tr1 tr2) ++ " of type " ++
+                             pshowU (itynf) ++ "."
     AIPair t1 t2 -> do
       nty <- nwhnf ty
       case nty of
-        AIota tp1 tp2 -> do
+        AIota st tp1 tp2 -> do
           nt1 <- erase =<< nf t1
           nt2 <- erase =<< nf t2
           if nt1 == nt2
-          then check t1 tp1 >> check t2 (sub t1 0 tp2)
-          else proofError "Iota constructor does not erase properly."
-        _ -> proofError "Iota constructor must be a dependent intersection."
+          then check t1 tp1 >> check t2 (sub t1 tp2)
+          else proofError $ "Iota constructor does not erase properly. " ++ pshowA t1 ++ " erases to " ++
+                             pshowU nt1 ++ " while " ++ pshowA t2 ++ " erases to " ++ pshowU nt2 ++ "."
+        _ -> proofError $ "IIota constructor must be a dependent intersection, not " ++ pshowA nty ++ "."
     AFst tr -> do
       ity <- infer (AFst tr)
       nty  <- erase =<< nf ty
       nity <- erase =<< nf ity
-      if nty == nity
-      then check ty AStar
-      else proofError "Failed to unify at iota elimination. (#1)"
+      case (nty, nity) of
+        (U j, U i) -> 
+          if i <= j
+          then return () 
+          else proofError $ "Size error during iota elimination (#1). " ++ pshowA (AFst tr) ++ " of type "
+                              ++ pshowA (ity) ++ " is too big for universe " ++ pshowA ty ++ "."
+        _ ->
+          if nty == nity
+          then infer ty >> return () -- Note: this isn't used, ty just needs some type.
+          else proofError $ "Failed to unify at iota elimination. (#1) " ++  pshowA (AFst tr) ++ " of type "
+                              ++ pshowA (ity) ++ " is not of type " ++ pshowA ty ++ "."
     ASnd tr -> do
       ity <- infer (ASnd tr)
       nty  <- erase =<< nf ty
       nity <- erase =<< nf ity
-      if nty == nity
-      then check ty AStar
-      else proofError "Failed to unify at iota elimination. (#2)"
+      case (nty, nity) of
+        (U j, U i) -> 
+          if i <= j
+          then return () 
+          else proofError $ "Size error during iota elimination (#2). " ++ pshowA (ASnd tr) ++ " of type "
+                              ++ pshowA (ity) ++ " is too big for universe " ++ pshowA ty ++ "."
+        _ ->
+          if nty == nity
+          then infer ty >> return () -- Note: this isn't used, ty just needs some type.
+          else proofError $ "Failed to unify at iota elimination. (#2) " ++  pshowA (ASnd tr) ++ " of type "
+                              ++ pshowA (ity) ++ " is not of type " ++ pshowA ty ++ "."
     ABeta -> do
       nty <- nwhnf ty
       case nty of
@@ -157,40 +244,85 @@ check tr ty =
           nt2 <- erase =<< nf t2
           if nt1 == nt2
           then return ()
-          else proofError "Lhs does not match rhs of identity."
+          else proofError $ "Left hand side " ++ pshowA t1 ++ ", which erased to " ++ pshowU nt1 ++
+                            ", did not match right hand side " ++ pshowA t2  ++ ", which erased to "
+                            ++ pshowU nt2 ++ " during Beta check."
         _ -> proofError "Identity constructor must construct identity."
-    ARho tr1 x tr2 -> do
+    ARho st tr1 x tr2 -> do
       ntr1ty <- nwhnf =<< infer tr1
       case ntr1ty of
         AId t1 t2 -> do
           nty <- erase =<< nf ty
-          nt2 <- erase =<< nf (sub t2 0 x)
+          nt2 <- erase =<< nf (sub t2 x)
           if nty == nt2
-          then check ty AStar >> check tr2 (sub t1 0 x)
-          else proofError "LHS and RHS of identity don't match after erasure."
+          then do
+            infer ty -- Note: This isn't used, ty just needs to have some type.
+                     -- I think some better check involving liftable or liftMin should be used instead.
+            check tr2 (sub t1 x)
+          else proofError $ "Left hand side " ++ pshowA ty ++ ", which erased to " ++ pshowU nty ++
+                            ", did not match right hand side " ++ pshowA (sub t2 x) ++ ", which erased to "
+                            ++ pshowU nt2 ++ " during Rho check."
         _ -> proofError "Term is not an identity during term checking."
-    APi ty1 ty2 -> do
-      nty <- nwhnf ty
-      case nty of
-        AStar -> check ty1 AStar >> local (ty1:) (check ty2 AStar)
-        _ -> proofError "Pi types can only have type *."
-    AIPi ty1 ty2 -> do
-      nty <- nwhnf ty
-      case nty of
-        AStar -> check ty1 AStar >> local (ty1:) (check ty2 AStar)
-        _ -> proofError "Implicit products can only have type *."
-    AIota ty1 ty2 -> do
-      nty <- nwhnf ty
-      case nty of
-        AStar -> check ty1 AStar >> local (ty1:) (check ty2 AStar)
-        _ -> proofError "Dependent intersections can only have type *."
+    APi st ty1 ty2 -> do
+      tyw <- nwhnf ty
+      case tyw of
+        AU i -> infer ty1 >> local (ty1:) (check ty2 (AU i))
+{-do
+          ty1ty <- infer ty1
+          case ty1ty of
+            AU j | i == j -> local (ty1:) (check ty2 (AU i))
+            _ -> check ty1ty (AU i) >> local (ty1:) (check ty2 (AU i))
+-}
+        _ -> proofError $ "Pi types can only be in Universe types, not " ++ pshowA tyw ++ "."
+    AIPi st ty1 ty2 -> do
+      tyw <- nwhnf ty
+      case tyw of
+        AU i -> infer ty1 >> local (ty1:) (check ty2 (AU i))
+        _ -> proofError $ "Implicit product types can only be in Universe types, not " ++ pshowA tyw ++ "."
+    AIota st ty1 ty2 -> do
+      tyw <- nwhnf ty
+      case tyw of
+        AU i -> infer ty1 >> local (ty1:) (check ty2 (AU i))
+        _ -> proofError $ "Dependent intersections types can only be in Universe types, not " ++ pshowA tyw ++ "."
     AId x y -> do
-      nty <- nwhnf ty
-      case nty of
-        AStar -> return () -- Perhaps a better check is needed. x and y *should* be valid terms.
-        _ -> proofError "Heterogeneous equalities can only have type *."
-    AStar -> do
-      nty <- nwhnf ty
-      case nty of
-        AStar -> return ()
-        _ -> proofError "* can only have type *."
+      tyw <- nwhnf ty
+      case tyw of
+        AU i -> do 
+          xty <- infer x
+          check xty (AU i)
+          yty <- infer y
+          check yty (AU i)
+          return ()
+        _ -> proofError $ "Heterogeneous equalities can only be in Universe types, not " ++ pshowA tyw ++ "."
+    AU i -> do
+      tyw <- nwhnf ty
+      case tyw of
+        AU j -> if i < j then return () else proofError $ "Size error, level " ++ show i ++
+                                                          " universe is not a term in the level " ++ show j ++ " universe."
+        _ -> proofError $ "Universes can only exist in other universes, not " ++ pshowA tyw ++ "."
+
+-- Note: This isn't used right now, but will likely be in the future.
+liftable :: ATerm -> Int -> Proof ()
+liftable a j = do
+  aty <- infer a
+  case aty of
+    AU i ->
+      if i <= j
+      then return ()
+      else proofError $ "Size error during lifting check, " ++ pshowA a ++
+                        " within universe " ++ show i ++ " cannot be lifted to universe " ++ show j ++ "."
+    _ -> liftable aty j
+
+-- Gives the lowest type universe of a term.
+liftMin :: ATerm -> Proof Int
+liftMin a = do
+  aty <- infer a
+  case aty of
+    AU j -> return j
+    _ -> liftMin aty
+
+
+
+
+
+

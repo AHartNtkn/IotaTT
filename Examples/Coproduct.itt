@@ -1,31 +1,31 @@
 module Coproduct where
 
-cCoproduct : * -> * -> * = \ A C . (X : *) -> (A -> X) -> (C -> X) -> X
+cCoproduct : U[0] -> U[0] -> U[0] = \ A C . (X : U[0]) -> (A -> X) -> (C -> X) -> X
 
-cInl : (A : *) (C : *) -> A -> cCoproduct A C = \ _ _ a _ f _ . f a
+cInl : (A : U[0]) (C : U[0]) -> A -> cCoproduct A C = \ _ _ a _ f _ . f a
 
-cInr : (A : *) (C : *) -> C -> cCoproduct A C = \ _ _ c _ _ f . f c
+cInr : (A : U[0]) (C : U[0]) -> C -> cCoproduct A C = \ _ _ c _ _ f . f c
 
-Coproduct : * -> * -> *
+Coproduct : U[0] -> U[0] -> U[0]
   = \ A C .
       i (c : cCoproduct A C) . 
-        (P : cCoproduct A C -> *) ->
+        (P : cCoproduct A C -> U[0]) ->
         ((a : A) -> P (cInl A C a)) ->
         ((c : C) -> P (cInr A C c)) ->
         P c
 
-Inl : (A : *) (C : *) -> A -> Coproduct A C = \ A C a . [ cInl A C a | \ _ f _ . f a ]
+Inl : (A : U[0]) (C : U[0]) -> A -> Coproduct A C = \ A C a . [ cInl A C a | \ _ f _ . f a ]
 
-Inr : (A : *) (C : *) -> C -> Coproduct A C = \ A C c . [ cInr A C c | \ _ _ f . f c ]
+Inr : (A : U[0]) (C : U[0]) -> C -> Coproduct A C = \ A C c . [ cInr A C c | \ _ _ f . f c ]
 
-CoprodElim : (A : *) (C : *) ->
-             (P : Coproduct A C -> *) ->
+CoprodElim : (A : U[0]) (C : U[0]) ->
+             (P : Coproduct A C -> U[0]) ->
              ((a : A) -> P (Inl A C a)) ->
              ((c : C) -> P (Inr A C c)) ->
              (c : Coproduct A C) -> P c
   = \ A C P pl pr c .
       c.2
-        (\ (x : cCoproduct A C) . (X : *) -> ((x' : Coproduct A C) -> (x ~ x') -> P x' -> X) -> X)
+        (\ (x : cCoproduct A C) . (X : U[0]) -> ((x' : Coproduct A C) -> (x ~ x') -> P x' -> X) -> X)
         (\ a X ih . ih (Inl A C a) B (pl a))
         (\ c X ih . ih (Inr A C c) B (pr c))
         (P c)

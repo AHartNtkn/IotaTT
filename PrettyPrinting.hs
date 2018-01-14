@@ -1,80 +1,69 @@
 module PrettyPrinting where
 
-import Data.Char
-
 import AbstractSyntax
 
-char :: Int -> String
-char i = [chr (i + 97)]
+parenA :: ATerm -> String
+parenA a@AApp{} = "(" ++ pshowA a ++ ")"
+parenA a@AAppi{} = "(" ++ pshowA a ++ ")"
+parenA a@ARho{} = "(" ++ pshowA a ++ ")"
+parenA a@APi{} = "(" ++ pshowA a ++ ")"
+parenA a@AIPi{} = "(" ++ pshowA a ++ ")"
+parenA a@AIota{} = "(" ++ pshowA a ++ ")"
+parenA a@AId{} = "(" ++ pshowA a ++ ")"
+parenA a@AAnn{} = "(" ++ pshowA a ++ ")"
+parenA a@ALam{} = "(" ++ pshowA a ++ ")"
+parenA a@ALAM{} = "(" ++ pshowA a ++ ")"
+parenA a = pshowA a
 
-parenA :: Int -> ATerm -> String
-parenA i a@AApp{} = "(" ++ printA i a ++ ")"
-parenA i a@AAppi{} = "(" ++ printA i a ++ ")"
-parenA i a@ARho{} = "(" ++ printA i a ++ ")"
-parenA i a@APi{} = "(" ++ printA i a ++ ")"
-parenA i a@AIPi{} = "(" ++ printA i a ++ ")"
-parenA i a@AIota{} = "(" ++ printA i a ++ ")"
-parenA i a@AId{} = "(" ++ printA i a ++ ")"
-parenA i a@AAnn{} = "(" ++ printA i a ++ ")"
-parenA i a@ALam{} = "(" ++ printA i a ++ ")"
-parenA i a@ALAM{} = "(" ++ printA i a ++ ")"
-parenA i a = printA i a
-
-printA :: Int -> ATerm -> String
-printA i (AVS s) = s
-printA i (AV n) = char (i - n - 1)
-printA i (AAnn a b) = printA i a ++ " : " ++ parenA i b
-printA i (AApp a b) = printA i a ++ " " ++ parenA i b
-printA i (AAppi a b) = printA i a ++ " - " ++ parenA i b
-printA i (ALam a) = "\\" ++ char i ++ " . " ++ printA (1 + i) a
-printA i (ALAM a) = "/" ++ char i ++ " . " ++ printA (1 + i) a
-printA i (AIPair a b) = "[" ++ printA i a ++ " | " ++ printA i b ++ "]"
-printA i (AFst a) = parenA i a ++ ".1"
-printA i (ASnd a) = parenA i a ++ ".2"
-printA i ABeta = "B"
-printA i (ARho a t b) = "r(" ++ char i ++ " . " ++ printA (1 + i) t ++ ") " ++ parenA i a ++ " . " ++ printA i b
-printA i (AIota a b) = "i(" ++ char i ++ " : " ++ printA i a ++ ") . " ++ printA (1 + i) b
-printA i (AId a b) = printA i a ++ " ~ " ++ printA i b
-printA i (APi a b) =
+pshowA :: ATerm -> String
+pshowA (AVS s) = s
+pshowA (AV s n) = s
+pshowA (AAnn a b) = pshowA a ++ " : " ++ parenA b
+pshowA (AApp a b) = pshowA a ++ " " ++ parenA b
+pshowA (AAppi a b) = pshowA a ++ " - " ++ parenA b
+pshowA (ALam st a) = "\\" ++ st ++ " . " ++ pshowA a
+pshowA (ALAM st a) = "/" ++ st ++ " . " ++ pshowA a
+pshowA (AIPair a b) = "[" ++ pshowA a ++ " | " ++ pshowA b ++ "]"
+pshowA (AFst a) = parenA a ++ ".1"
+pshowA (ASnd a) = parenA a ++ ".2"
+pshowA ABeta = "B"
+pshowA (ARho st a t b) = "r(" ++ st ++ " . " ++ pshowA t ++ ") " ++ parenA a ++ " . " ++ pshowA b
+pshowA (AIota st a b) = "i(" ++ st ++ " : " ++ pshowA a ++ ") . " ++ pshowA b
+pshowA (AId a b) = pshowA a ++ " ~ " ++ pshowA b
+pshowA (APi st a b) =
   if freeIn b 0
-  then "(" ++ char i ++ " : " ++ printA i a ++ ") -> " ++ printA (1 + i) b
-  else parenA i a ++ " -> " ++ printA (1 + i) b
-printA i (AIPi a b) = "{" ++ char i ++ " : " ++ printA i a ++ "} -> " ++ printA (1 + i) b
-printA i AStar = "*"
+  then "(" ++ st ++ " : " ++ pshowA a ++ ") -> " ++ pshowA b
+  else parenA a ++ " -> " ++ pshowA b
+pshowA (AIPi st a b) = "{" ++ st ++ " : " ++ pshowA a ++ "} -> " ++ pshowA b
+pshowA (AU l) = "U[" ++ show l ++ "]"
 
-parenD :: Int -> Term -> String
-parenD i a@App{} = "(" ++ printD i a ++ ")"
-parenD i a@Pi{} = "(" ++ printD i a ++ ")"
-parenD i a@IPi{} = "(" ++ printD i a ++ ")"
-parenD i a@Lam{} = "(" ++ printD i a ++ ")"
-parenD i a@Iota{} = "(" ++ printD i a ++ ")"
-parenD i a = printD i a
+parenD :: Term -> String
+parenD a@App{} = "(" ++ pshowU a ++ ")"
+parenD a@Pi{} = "(" ++ pshowU a ++ ")"
+parenD a@IPi{} = "(" ++ pshowU a ++ ")"
+parenD a@Lam{} = "(" ++ pshowU a ++ ")"
+parenD a@Iota{} = "(" ++ pshowU a ++ ")"
+parenD a = pshowU a
 
-freeIndb (V x) n       = x == n
-freeIndb (Lam d) n     = freeIndb d (1 + n)
-freeIndb (App d d1) n  = freeIndb d n || freeIndb d1 n
-freeIndb (Pi t tp) n   = freeIndb t n || freeIndb tp (1 + n)
-freeIndb (IPi t tp) n  = freeIndb t n || freeIndb tp (1 + n)
-freeIndb (Iota t tp) n = freeIndb t n || freeIndb tp (1 + n)
-freeIndb (Id x y)    n = freeIndb x n || freeIndb y n
-freeIndb Star n        = False
+freeIndb (V s x)        n = x == n
+freeIndb (Lam st d)     n = freeIndb d (1 + n)
+freeIndb (App d d1)     n = freeIndb d n || freeIndb d1 n
+freeIndb (Pi st t tp)   n = freeIndb t n || freeIndb tp (1 + n)
+freeIndb (IPi st t tp)  n = freeIndb t n || freeIndb tp (1 + n)
+freeIndb (Iota st t tp) n = freeIndb t n || freeIndb tp (1 + n)
+freeIndb (Id x y)       n = freeIndb x n || freeIndb y n
+freeIndb (U _)          n = False
 
-printD :: Int -> Term -> String
-printD i (V n) = char (i - n - 1)
-printD i (App a b) = printD i a ++ " " ++ parenD i b
-printD i (Lam a) = "\\" ++ char i ++ " . " ++ printD (1 + i) a
-printD i (Pi a b) =
+pshowU :: Term -> String
+pshowU (V s n) = s
+pshowU (App a b) = pshowU a ++ " " ++ parenD b
+pshowU (Lam st a) = "\\" ++ st  ++ " . " ++ pshowU a
+pshowU (Pi st a b) =
   if freeIndb b 0
-  then "(" ++ char i ++ " : " ++ printD i a ++ ") -> " ++ printD (1 + i) b
-  else parenD i a ++ " -> " ++ printD (1 + i) b
-printD i (IPi a b) = "{" ++ char i ++ " : " ++ printD i a ++ "} -> " ++ printD (1 + i) b
-printD i (Id a b) = printD i a ++ " ~ " ++ printD i b
-printD i (Iota a b) = "i(" ++ char i ++ " : " ++ printD i a ++ ") . " ++ printD (1 + i) b
-printD i Star = "*"
+  then "(" ++ st ++ " : " ++ pshowU a ++ ") -> " ++ pshowU b
+  else parenD a ++ " -> " ++ pshowU b
+pshowU (IPi st a b) = "{" ++ st ++ " : " ++ pshowU a ++ "} -> " ++ pshowU b
+pshowU (Id a b) = pshowU a ++ " ~ " ++ pshowU b
+pshowU (Iota st a b) = "i(" ++ st ++ " : " ++ pshowU a ++ ") . " ++ pshowU b
+pshowU (U l) = "U[" ++ show l ++ "]"
 
-instance Show Term where
-  show = printD 0
-{-
-instance Show ATerm where
-  show = printA 0
--}

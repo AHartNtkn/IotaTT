@@ -34,7 +34,7 @@ SSnd.          Exp4 ::= Exp4 ".2" ;
 SPair.         Exp5 ::= "[" Exp "|" Exp "]" ;
 SVar.          Exp5 ::= AIdent ;
 SBeta.         Exp5 ::= "B" ;
-SU.            Exp5 ::= "*" ;
+SU.            Exp5 ::= "U[" Lv "]" ;
 SHole.         Exp5 ::= HoleIdent ;
 coercions Exp 5 ;
 
@@ -49,5 +49,8 @@ terminator nonempty ITele "" ;
 
 token AIdent ('_')|(letter)(letter|digit|'\''|'_')*|('!')(digit)* ;
 separator AIdent "" ;
+
+token Lv (digit)+ ;
+separator Lv "" ;
 
 token HoleIdent '?' ;

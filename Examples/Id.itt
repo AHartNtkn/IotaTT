@@ -1,26 +1,26 @@
 module Id where
 
-cId : (T : *) (a : T) (b : T) -> *
-    = \ T a b . (P : T -> *) -> P a -> P b
+cId : (T : U[0]) (a : T) (b : T) -> U[0]
+    = \ T a b . (P : T -> U[0]) -> P a -> P b
 
-cRefl : (T : *) (a : T) -> cId T a a
+cRefl : (T : U[0]) (a : T) -> cId T a a
       = \ T a P k . k
 
-Id : (T : *) (a : T) (b : T) -> *
+Id : (T : U[0]) (a : T) (b : T) -> U[0]
    = \T a b .
      i (e : cId T a b) .
-       (C : (a : T) (b : T) -> cId T a b -> *) ->
+       (C : (a : T) (b : T) -> cId T a b -> U[0]) ->
           C a a (cRefl T a) ->
           C a b e
 
-Refl : (T : *) (a : T) -> Id T a a
+Refl : (T : U[0]) (a : T) -> Id T a a
      = \ T a . [ cRefl T a | \ C k . k ]
 
-J : (T : *) (a : T) (b : T) (C : (a : T) (b : T) -> Id T a b -> *) ->
+J : (T : U[0]) (a : T) (b : T) (C : (a : T) (b : T) -> Id T a b -> U[0]) ->
     C a a (Refl T a) -> (e : Id T a b) -> C a b e
   = \ T a b C cr x .
       x.2
-        (\(a : T) (b : T) (u : cId T a b) . (X : *) -> ((x : Id T a b) -> x ~ u -> C a b x -> X) -> X)
+        (\(a : T) (b : T) (u : cId T a b) . (X : U[0]) -> ((x : Id T a b) -> x ~ u -> C a b x -> X) -> X)
         (\ X ih . ih (Refl T a) B cr)
         (C a b x)
         (\ y e cy . r(x . C a b x) e . cy)

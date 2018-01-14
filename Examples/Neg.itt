@@ -4,15 +4,15 @@ import Empty
 import Unit
 import Bool
 
-Not : * -> * = \A . A -> Empty
+Not : U[0] -> U[0] = \A . A -> Empty
 
-conLem1 : Bool -> *
-        = BoolInd (\b . *) Unit Empty
+conLem1 : Bool -> U[0]
+        = BoolInd (\b . U[0]) Unit Empty
 
 conLem2 : True ~ False -> Unit ~ Empty
         = \ e . r(x . conLem1 True ~ conLem1 x) e . B
 
-transport : (A : *) (C : *) -> A ~ C -> A -> C
+transport : (A : U[0]) (C : U[0]) -> A ~ C -> A -> C
           = \ A C e a . r(x . x) e . a
 
 con : Not (True ~ False)

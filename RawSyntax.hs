@@ -15,7 +15,7 @@ import qualified Data.HashMap.Strict as HM
 {- Intermediate raw instax -}
 data ITerm
    = IVS String
-   | IV Int
+   | IV String Int
    | ILam String ITerm
    | IAnn ITerm ITerm
    | IApp ITerm ITerm
@@ -30,15 +30,15 @@ data ITerm
    | IIPi String ITerm ITerm
    | IIota String ITerm ITerm
    | IId ITerm ITerm
-   | IStar
+   | IU Int
    deriving (Show)
 
 {- Convert intermediate syntax into abstract syntax -}
 
 -- Replace string variables with deBruijin indices
 index :: String -> Int -> ITerm -> ITerm
-index s n (IVS x) = if s == x then IV n else IVS x
-index s n (IV x) = IV x
+index s n (IVS x) = if s == x then IV s n else IVS x
+index s n (IV st x) = IV st x
 index s n (ILam x d) = ILam x (index s (1 + n) (index x 0 d))
 index s n (IAnn d d1) = IAnn (index s n d) (index s n d1)
 index s n (IApp d d1) = IApp (index s n d) (index s n d1)
@@ -53,27 +53,27 @@ index s n (IPit x d d1) = IPit x (index s n d) (index s (1 + n) (index x 0 d1))
 index s n (IIPi x d d1) = IIPi x (index s n d) (index s (1 + n) (index x 0 d1))
 index s n (IIota x d d1) = IIota x (index s n d) (index s (1 + n) (index x 0 d1))
 index s n (IId d x) = IId (index s n d) (index s n x)
-index s n IStar = IStar
+index s n (IU i) = IU i
 
 -- Convert intermediate syntax into abstract syntax
 fromInter :: ITerm -> Proof ATerm
-fromInter (IV x) = return $ AV x
+fromInter (IV s x) = return $ AV s x
 fromInter (IVS x) = return $ AVS x
-fromInter (ILam x d) = ALam <$> fromInter d
+fromInter (ILam x d) = ALam x <$> fromInter d
 fromInter (IApp d d1) = AApp <$> fromInter d <*> fromInter d1
 fromInter (IAnn d d1) = AAnn <$> fromInter d <*> fromInter d1
-fromInter (ILAM x d) = ALAM <$> fromInter d
+fromInter (ILAM x d) = ALAM x <$> fromInter d
 fromInter (IAppi d d1) = AAppi <$> fromInter d <*> fromInter d1
 fromInter (IIPair d d1) = AIPair <$> fromInter d <*> fromInter d1
 fromInter (IFst d) = AFst <$> fromInter d
 fromInter (ISnd d) = ASnd <$> fromInter d
 fromInter IBeta = return ABeta
-fromInter (IRho d x tp d1) = ARho <$> fromInter d <*> fromInter tp <*> fromInter d1
-fromInter (IPit x d d1) = APi <$> fromInter d <*> fromInter d1
-fromInter (IIPi x d d1) = AIPi <$> fromInter d <*> fromInter d1
-fromInter (IIota x d d1) = AIota <$> fromInter d <*> fromInter d1
+fromInter (IRho d x tp d1) = ARho x <$> fromInter d <*> fromInter tp <*> fromInter d1
+fromInter (IPit x d d1) = APi x <$> fromInter d <*> fromInter d1
+fromInter (IIPi x d d1) = AIPi x <$> fromInter d <*> fromInter d1
+fromInter (IIota x d d1) = AIota x <$> fromInter d <*> fromInter d1
 fromInter (IId x y) = AId <$> fromInter x <*> fromInter y
-fromInter IStar = return AStar
+fromInter (IU i) = return (AU i)
 
 {- Convert concrete syntax into intermediate syntax -}
 fromCon :: Exp -> Proof ITerm
@@ -101,8 +101,8 @@ fromCon (SIPi [ITele (SVar (AIdent e)) t] o) = IIPi e <$> fromCon t <*> fromCon 
 fromCon (SIPi (ITele (SVar (AIdent e)) t : l) o) = IIPi e <$> fromCon t <*> fromCon (SIPi l o)
 fromCon (SId a b) = IId <$> fromCon a <*> fromCon b
 fromCon (SIota (PTele (SVar (AIdent e)) t) b) = IIota e <$> fromCon t <*> fromCon b
-fromCon SU = return IStar
-fromCon _ = proofError "Parsing Error"
+fromCon (SU (Lv e)) = return (IU (read e))
+fromCon s = proofError ("Parsing Error: Cannot interpret " ++ show s ++ "." )
 
 {- Convert Concrete Syntax into Abstract Syntax -}
 convert :: Exp -> Proof ATerm

@@ -1,33 +1,33 @@
 module Sigma where
 
-cSigma : (T : *) (S : T -> *) -> *
-       = \ (T : *) (S : T -> *) . (X : *) -> ((x : T) -> S x -> X) -> X
+cSigma : (T : U[0]) (S : T -> U[0]) -> U[0]
+       = \ (T : U[0]) (S : T -> U[0]) . (X : U[0]) -> ((x : T) -> S x -> X) -> X
 
-cPair : (T : *) (S : T -> *) (t : T) -> S t -> cSigma T S
+cPair : (T : U[0]) (S : T -> U[0]) (t : T) -> S t -> cSigma T S
       = \ T S t st X f . f t st
 
-Sigma : (T : *) (S : T -> *) -> *
-      = \ (T : *) (S : T -> *) .
+Sigma : (T : U[0]) (S : T -> U[0]) -> U[0]
+      = \ (T : U[0]) (S : T -> U[0]) .
         i (s : cSigma T S) .
-          (C : cSigma T S -> *) ->
+          (C : cSigma T S -> U[0]) ->
             ((t : T) (st : S t) -> C (cPair T S t st)) ->
             C s
 
-Pair : (T : *) (S : T -> *) (t : T) -> S t -> Sigma T S
+Pair : (T : U[0]) (S : T -> U[0]) (t : T) -> S t -> Sigma T S
      = \ T S t st . [ cPair T S t st | \ X f . f t st ]
 
-SigElim : (T : *) (S : T -> *) (C : Sigma T S -> *) ->
+SigElim : (T : U[0]) (S : T -> U[0]) (C : Sigma T S -> U[0]) ->
           ((t : T) -> (st : S t) -> C (Pair T S t st)) ->
           (s : Sigma T S) -> C s
         = \ T S C p s .
             s.2
-              (\(u : cSigma T S) . (X : *) -> ((x : Sigma T S) -> x ~ u -> C x -> X) -> X)
+              (\(u : cSigma T S) . (X : U[0]) -> ((x : Sigma T S) -> x ~ u -> C x -> X) -> X)
               (\ t st X ih . ih (Pair T S t st) B (p t st))
               (C s)
               (\ y e cy . r(x . C x) e . cy)
 
-fst : (T : *) (S : T -> *) -> Sigma T S -> T
+fst : (T : U[0]) (S : T -> U[0]) -> Sigma T S -> T
     = \ T S . SigElim T S (\ s . T) (\ t st . t)
 
-snd : (T : *) (S : T -> *) -> (s : Sigma T S) -> S (fst T S s)
+snd : (T : U[0]) (S : T -> U[0]) -> (s : Sigma T S) -> S (fst T S s)
     = \ T S . SigElim T S (\ s . S (fst T S s)) (\ t st . st)

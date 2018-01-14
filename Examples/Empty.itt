@@ -1,14 +1,14 @@
 module Empty where
 
-cEmpty : * = (A : *) -> A
+cEmpty : U[0] = (A : U[0]) -> A
 
-Empty : * = i (e : cEmpty) . (P : cEmpty -> *) -> P e
+Empty : U[0] = i (e : cEmpty) . (P : cEmpty -> U[0]) -> P e
 
-EmptyInd : (P : Empty -> *) -> (e : Empty) -> P e
+EmptyInd : (P : Empty -> U[0]) -> (e : Empty) -> P e
          = \ P e .
                e.2
-                 (\ (x : cEmpty) . (X : *) -> ((x' : Empty) -> (x ~ x') -> P x' -> X) -> X)
+                 (\ (x : cEmpty) . (X : U[0]) -> ((x' : Empty) -> (x ~ x') -> P x' -> X) -> X)
                  (P e)
                  (\x' eq u . r(x . P x) (r(o . o ~ e) eq . B) . u)
 
-EmptyInd2 : (P : Empty -> *) -> (e : Empty) -> P e = \ P e . e.1 (P e)
+EmptyInd2 : (P : Empty -> U[0]) -> (e : Empty) -> P e = \ P e . e.1 (P e)

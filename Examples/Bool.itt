@@ -1,21 +1,21 @@
 module Bool where
 
-cBool : * = (X : *) -> X -> X -> X
+cBool : U[1] = (X : U[1]) -> X -> X -> X
 
 cTrue : cBool = \ X t f . t
 
 cFalse : cBool = \ X t f . f
 
-Bool : * = i (b : cBool) . (P : cBool -> *) -> P cTrue -> P cFalse -> P b
+Bool : U[1] = i (b : cBool) . (P : cBool -> U[1]) -> P cTrue -> P cFalse -> P b
 
 True : Bool = [ cTrue | \ X t f . t ]
 
 False : Bool = [ cFalse | \ X t f . f ]
 
-BoolInd : (P : Bool -> *) -> P True -> P False -> (b : Bool) -> P b
+BoolInd : (P : Bool -> U[1]) -> P True -> P False -> (b : Bool) -> P b
     = \ P pt pf b .
         b.2
-          (\(x : cBool) . (X : *) -> ((x' : Bool) -> (x ~ x') -> P x' -> X) -> X)
+          (\(x : cBool) . (X : U[1]) -> ((x' : Bool) -> (x ~ x') -> P x' -> X) -> X)
           (\ X c . c True B pt)
           (\ X c . c False B pf)
           (P b)
