@@ -91,10 +91,8 @@ infer tr = do
         i <- liftMin ty2
         return (AU i)
     AId x y -> do
-      xty <- infer x
-      ix <- liftMin xty
-      yty <- infer y
-      iy <- liftMin yty
+      ix <- liftMin =<< infer x
+      iy <- liftMin =<< infer y
       return (AU (max ix iy))
     AU i -> return (AU (i + 1))
 
@@ -278,11 +276,4 @@ liftMin a = do
   aty <- infer a
   case aty of
     AU j -> return j
-    _ -> proofError $ "Universe error during lift, " ++ pshowA a ++ " is a " ++ pshowA aty ++ " , not a type ."
-
-
-
-
-
-
-
+    _ -> proofError $ "Universe error during lift, " ++ pshowA a ++ " is a " ++ pshowA aty ++ ", not a type."
